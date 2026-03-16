@@ -1,0 +1,96 @@
+
+marketpro/
+├── server/
+│   ├── main.py                          ✏️ CHANGED
+│   ├── config/
+│   │   └── cloudinary_config.py         ✏️ CHANGED  ← biggest fix
+│   └── routes/
+│       ├── products.py                  ✏️ CHANGED
+│       └── misc.py                      ✏️ CHANGED
+└── client/
+    └── src/
+        └── pages/
+            └── admin/
+                └── AdminProducts.jsx    ✏️ CHANGED  ← 1 line only
+
+
+
+
+
+All 9 Bugs Fixed
+Bug 1 — The Root Cause: Cloudinary blocks the async event loop
+File: config/cloudinary_config.py
+The Cloudinary SDK's uploader.upload() and uploader.destroy() are synchronous urllib3 calls. Calling them bare inside async def does NOT make them async — they literally freeze the entire FastAPI event loop thread for 1–3 seconds while waiting for Cloudinary's HTTP response.
+During that freeze, Motor (MongoDB's async driver) had pending callbacks that needed the event loop to tick — they timed out and threw, after the DB write had already succeeded.
+
+
+# ❌ BEFORE — blocks the event loop
+async def upload_image(file_bytes, ...):
+    result = cloudinary.uploader.upload(file_bytes, ...)  # FREEZES everything
+
+# ✅ AFTER — runs in a thread pool, event loop stays free
+async def _run_sync(func, *args, **kwargs):
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, partial(func, *args, **kwargs))
+
+async def upload_image(file_bytes, ...):
+    result = await _run_sync(cloudinary.uploader.upload, file_bytes, ...)
+
+
+Bug 2 — Mutated dict passed to serialize_product after insert_one
+File: routes/products.py — create_product
+After insert_one(doc), Motor writes the ObjectId _id back into doc in-place. The old code then passed this same mutated dict to serialize_product, which tried to pop _id but left other nested ObjectId values (like category_id if it came in as an ObjectId). FastAPI's JSON encoder choked on them → 500.
+# ❌ BEFORE — doc is mutated by Motor, still has ObjectId fields
+result = await db.products.insert_one(doc)
+doc["_id"] = result.inserted_id          # ObjectId still in dict
+return serialize_product(doc, db)        # JSON crash
+
+# ✅ AFTER — re-fetch a clean document
+result = await db.products.insert_one(doc)
+created = await db.products.find_one({"_id": result.inserted_id})
+return serialize_product(created, db)    # clean Motor document
+
+
+Bug 3 — serialize_product mutates the original Motor document
+File: routes/products.py — serialize_product
+The old function did p["id"] = str(p.pop("_id")) — mutating the raw dict from Motor. If anything else held a reference to that dict (e.g. a list comprehension in the GET-all endpoint), it was now broken. Replaced with _stringify_doc() that returns a new dict and never touches the original.
+
+Bug 4 — update_product silently drops False / 0 values
+File: routes/products.py — update_product
+# ❌ BEFORE — drops is_active=False, stock=0, is_on_sale=False, etc.
+update_data = {k: v for k, v in body.dict().items() if v is not None}
+
+# ✅ AFTER — only excludes keys that should never be written back
+update_data = {k: v for k, v in body.dict().items() if k not in {"id"}}
+
+
+Bug 5 — Route shadowing: GET /admin/all matched by GET /{product_id}
+File: routes/products.py
+FastAPI registers routes in order. GET /{product_id} was registered first, so GET /admin/all was never reachable — the router tried ObjectId("all") which raised an unhandled exception → 500.
+python# ❌ BEFORE — "all" matched as product_id
+@router.get("/admin/all")   # unreachable, /{product_id} catches it first
+
+# ✅ AFTER — unambiguous path
+@router.get("/admin/list")
+Client updated to call /products/admin/list.
+
+
+Bug 6 — Raw ObjectId(x) calls with no guard
+File: routes/products.py, routes/misc.py
+Any invalid ID string (like a slug or a typo) passed to ObjectId(x) raises bson.errors.InvalidId — an unhandled exception swallowed as 500. Replaced all bare ObjectId() calls with a _safe_object_id() helper that returns None on failure.
+
+Bug 7 — Global exception handler hid the real error
+File: main.py
+The old handler logged exc but not the full traceback, and always returned "Internal server error" with no detail. In development this made ghost 500s nearly impossible to debug.
+# ✅ AFTER — full traceback logged, real error shown in dev mode
+logger.error(f"Unhandled {type(exc).__name__}\n{traceback.format_exc()}")
+detail = f"{type(exc).__name__}: {exc}" if settings.APP_ENV == "development" else "Internal server error"
+Also added a proper RequestValidationError handler so Pydantic schema mismatches return 422 with field-level detail instead of being swallowed as 500.
+
+Bug 8 — category_id / brand_id lookup crashes on non-ObjectId strings
+File: routes/products.py — serialize_product
+If category_id was stored as an empty string "" or a malformed value, ObjectId("") raised immediately. Fixed with the _safe_object_id() guard — bad IDs are simply skipped, product still returns.
+
+Bug 9 — update_product filter strips boolean False fields (data integrity)
+Already covered in Bug 4 above — this was also silently corrupting data on every edit where any boolean field was set to False.
+
