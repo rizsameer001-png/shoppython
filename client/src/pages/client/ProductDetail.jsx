@@ -50,7 +50,7 @@ function ImageGallery({ images = [], productName }) {
         ))}
       </div>
       <div className="flex-1 relative">
-        <div className={`aspect-square rounded-2xl overflow-hidden bg-gray-100 relative ${zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+        <div className={`aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100 relative ${zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
           onClick={() => setZoomed(!zoomed)}
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setZoomed(false)}>
@@ -126,13 +126,20 @@ export default function ProductDetail() {
   const handleAddToCart = () => {
     dispatch(addToCart({
       product_id: product.id,
-      quantity: qty,
-      variant: attrSummary,
+      quantity:   qty,
+      variant:    attrSummary,
       selected_attributes: Object.entries(selectedAttrs)
         .filter(([, v]) => v)
         .map(([attribute_id, value]) => {
-          const attr = product.attributes?.find(a => a.attribute_id === attribute_id)
-          return { attribute_id, name: attr?.name || '', value }
+          const attr    = product.attributes?.find(a => a.attribute_id === attribute_id)
+          // include color_hex so cart/order display shows real swatch color
+          const valMeta = attr?.values_meta?.find(m => m.value === value)
+          return {
+            attribute_id,
+            name:      attr?.name || '',
+            value,
+            color_hex: valMeta?.color_hex || null,
+          }
         }),
     }))
   }
@@ -226,15 +233,26 @@ export default function ProductDetail() {
               <div className="flex flex-wrap gap-2">
                 {attr.selected_values.map(v => {
                   const isSelected = selectedAttrs[attr.attribute_id] === v
+                  // Look up hex from values_meta (stored with the product) or fall back
+                  const hex = attr.values_meta?.find(m => m.value === v)?.color_hex || null
                   return attr.type === 'color' ? (
-                    /* Color swatch — circle */
+                    /* Color swatch — circle with actual hex from admin */
                     <button key={v} type="button"
                       onClick={() => toggleAttrValue(attr.attribute_id, v)}
                       title={v}
-                      className={`w-8 h-8 rounded-full border-2 transition-all duration-150 hover:scale-110 flex-shrink-0
-                        ${isSelected ? 'border-primary-500 ring-2 ring-primary-300 ring-offset-1' : 'border-gray-300 hover:border-gray-400'}`}
-                      style={{ backgroundColor: v.startsWith('#') ? v : attr.values?.find(av => av.value === v)?.color_hex || '#888' }}
-                    />
+                      className={`w-9 h-9 rounded-full border-2 transition-all duration-150 hover:scale-110 flex-shrink-0 relative
+                        ${isSelected ? 'border-primary-500 ring-2 ring-primary-300 ring-offset-2' : 'border-gray-300 hover:border-gray-500'}`}
+                      style={{ backgroundColor: hex || (v.startsWith('#') ? v : '#d1d5db') }}
+                    >
+                      {/* tick on selected */}
+                      {isSelected && (
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                            <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </span>
+                      )}
+                    </button>
                   ) : (
                     /* Size / text chip */
                     <button key={v} type="button"

@@ -30,7 +30,8 @@ export default function ProductCard({ product }) {
   return (
     <div className="product-card animate-fade-in">
       {/* Image */}
-      <div className="relative aspect-square overflow-hidden bg-gray-50">
+      {/*<div className="relative aspect-square overflow-hidden bg-gray-50">*/}
+      <div className="relative aspect-[3/4] overflow-hidden bg-gray-50">
         <Link to={`/products/${product.id}`}>
           {product.images?.[0] ? (
             <img

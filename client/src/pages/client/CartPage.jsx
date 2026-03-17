@@ -5,12 +5,15 @@ import { updateCartItem, clearCart } from '@/store/slices/cartSlice'
 
 /* Renders selected attribute chips for a cart item */
 function AttrChips({ item }) {
-  // selected_attributes: [{name, value}] or fall back to item.variant string
   if (item.selected_attributes?.length > 0) {
     return (
       <div className="flex flex-wrap gap-1 mt-1">
         {item.selected_attributes.map((a, i) => (
-          <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+          <span key={i} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+            {a.color_hex && (
+              <span className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+                style={{ backgroundColor: a.color_hex }} />
+            )}
             {a.name}: {a.value}
           </span>
         ))}

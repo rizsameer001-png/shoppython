@@ -168,7 +168,14 @@ function AttributeSelector({ form, setForm, categoryId }) {
       if (f.attributes.find(a => a.attribute_id === attrId))
         return { ...f, attributes: f.attributes.filter(a => a.attribute_id !== attrId) }
       const attr = attributes.find(a => a.id === attrId)
-      return { ...f, attributes: [...f.attributes, { attribute_id: attrId, name: attr?.name || '', type: attr?.type || 'select', selected_values: [] }] }
+      return { ...f, attributes: [...f.attributes, {
+        attribute_id:  attrId,
+        name:          attr?.name || '',
+        type:          attr?.type || 'select',
+        selected_values: [],
+        // store full value objects so color_hex travels with the product
+        values_meta:   attr?.values || [],
+      }] }
     })
   }
 

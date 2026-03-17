@@ -164,7 +164,8 @@ export default function AdminOrders() {
                     {item.selected_attributes?.length > 0 ? (
                       <div className="flex flex-wrap gap-1 mt-0.5">
                         {item.selected_attributes.map((a, ai) => (
-                          <span key={ai} className="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full font-medium">
+                          <span key={ai} className="inline-flex items-center gap-1 text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full font-medium">
+                            {a.color_hex && <span className="w-3 h-3 rounded-full border border-gray-200 flex-shrink-0" style={{ backgroundColor: a.color_hex }} />}
                             {a.name}: {a.value}
                           </span>
                         ))}

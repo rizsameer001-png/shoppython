@@ -26,7 +26,9 @@ export default function BlogPostPage() {
       </Link>
 
       {post.cover_image && (
-        <div className="rounded-2xl overflow-hidden aspect-video mb-8">
+        // <div className="rounded-2xl overflow-hidden aspect-video mb-8">
+         // <div className="rounded-2xl overflow-hidden aspect-[3/5] mb-8">
+          <div className="rounded-2xl overflow-hidden mb-8 w-full">
           <img src={post.cover_image} alt={post.title} className="w-full h-full object-cover" />
         </div>
       )}
