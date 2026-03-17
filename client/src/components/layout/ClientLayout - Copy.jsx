@@ -87,22 +87,16 @@ export default function ClientLayout() {
 
             {/* Desktop nav */}
             <nav className="hidden md:flex items-center gap-1">
-              {NAV_LINKS.map((l) => {
-                const fullPath = location.pathname + location.search
-                const active = l.to.includes('?')
-                  ? fullPath === l.to
-                  : location.pathname === l.to
-                return (
-                  <Link
-                    key={l.to}
-                    to={l.to}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-150
-                      ${active ? 'text-primary-600 bg-primary-50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'}`}
-                  >
-                    {l.label}
-                  </Link>
-                )
-              })}
+              {NAV_LINKS.map((l) => (
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-150
+                    ${location.pathname === l.to ? 'text-primary-600 bg-primary-50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'}`}
+                >
+                  {l.label}
+                </Link>
+              ))}
             </nav>
 
             {/* Search */}
@@ -207,21 +201,16 @@ export default function ClientLayout() {
                 />
                 <button type="submit" className="btn-primary py-2 px-4 text-sm">Go</button>
               </form>
-              {NAV_LINKS.map((l) => {
-                const fullPath = location.pathname + location.search
-                const active = l.to.includes('?') ? fullPath === l.to : location.pathname === l.to
-                return (
-                  <Link
-                    key={l.to}
-                    to={l.to}
-                    onClick={() => setMenuOpen(false)}
-                    className={`block px-3 py-2.5 text-sm font-semibold rounded-lg transition-colors
-                      ${active ? 'text-primary-600 bg-primary-50' : 'text-gray-700 hover:bg-gray-50'}`}
-                  >
-                    {l.label}
-                  </Link>
-                )
-              })}
+              {NAV_LINKS.map((l) => (
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 rounded-lg"
+                >
+                  {l.label}
+                </Link>
+              ))}
             </div>
           )}
         </div>

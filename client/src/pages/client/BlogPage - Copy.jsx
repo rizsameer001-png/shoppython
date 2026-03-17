@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Calendar, Eye, Tag, Search, Grid, List } from 'lucide-react'
+import { useSelector } from 'react-redux'
 import api from '@/api/axios'
 
 export default function BlogPage() {
@@ -9,11 +10,7 @@ export default function BlogPage() {
   const [total, setTotal]       = useState(0)
   const [viewMode, setViewMode] = useState('grid')
   const [searchParams, setSearchParams] = useSearchParams()
-  const [blogCategories, setBlogCategories] = useState([])
-
-  useEffect(() => {
-    api.get('/blogs/categories').then(r => setBlogCategories(r.data.data || [])).catch(() => {})
-  }, [])
+  const { categories }          = useSelector(s => s.products)
 
   const page = Number(searchParams.get('page')) || 1
   const cat  = searchParams.get('category') || ''
@@ -55,7 +52,7 @@ export default function BlogPage() {
         </div>
         <select className="input text-sm py-2.5 w-44" value={cat} onChange={e => setFilter('category', e.target.value)}>
           <option value="">All Categories</option>
-          {blogCategories.map(bc => <option key={bc.id} value={bc.id}>{bc.name}</option>)}
+          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg ml-auto">
           <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode==='grid'?'bg-white shadow-sm text-primary-500':'text-gray-400'}`}><Grid className="w-4 h-4" /></button>
@@ -74,7 +71,8 @@ export default function BlogPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {blogs.map(b => (
             <Link key={b.id} to={`/blog/${b.slug || b.id}`} className="card overflow-hidden group hover:shadow-card-hover transition-shadow">
-              <div className="aspect-video bg-gray-100 overflow-hidden">
+              {/*<div className="aspect-video bg-gray-100 overflow-hidden">*/}
+             <div className="aspect-[3/4] bg-gray-100 overflow-hidden">
                 {b.cover_image
                   ? <img src={b.cover_image} alt={b.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   : <div className="w-full h-full flex items-center justify-center text-gray-200 text-5xl">📝</div>}
@@ -111,36 +109,15 @@ export default function BlogPage() {
       )}
 
       {/* Pagination */}
-      {total > 0 && (
-        <div className="mt-10 space-y-3">
-          <p className="text-center text-xs text-gray-400">
-            Showing {((page-1)*limit)+1}–{Math.min(page*limit, total)} of {total} articles
-          </p>
-          {Math.ceil(total/limit) > 1 && (
-            <div className="flex justify-center items-center gap-1.5 flex-wrap">
-              <button disabled={page<=1} onClick={() => setFilter('page', page-1)}
-                className="px-3 h-9 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-                ← Prev
-              </button>
-              {Array.from({ length: Math.ceil(total/limit) }, (_,i) => i+1)
-                .filter(p => p===1 || p===Math.ceil(total/limit) || Math.abs(p-page)<=2)
-                .reduce((acc, p, idx, arr) => {
-                  if (idx>0 && p-arr[idx-1]>1) acc.push('...')
-                  acc.push(p); return acc
-                }, [])
-                .map((p,i) => p==='...'
-                  ? <span key={`e${i}`} className="w-9 h-9 flex items-center justify-center text-gray-400 text-sm">…</span>
-                  : <button key={p} onClick={() => setFilter('page', p)}
-                      className={`w-9 h-9 rounded-lg text-sm font-semibold transition-all ${p===page?'bg-primary-500 text-white shadow-primary':'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                      {p}
-                    </button>
-                )}
-              <button disabled={page>=Math.ceil(total/limit)} onClick={() => setFilter('page', page+1)}
-                className="px-3 h-9 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-                Next →
-              </button>
-            </div>
-          )}
+      {total > limit && (
+        <div className="flex justify-center gap-2 mt-10">
+          {Array.from({ length: Math.ceil(total/limit) }, (_,i) => i+1).map(p => (
+            <button key={p} onClick={() => setFilter('page', p)}
+              className={`w-9 h-9 rounded-lg text-sm font-semibold transition-all
+                ${p===page ? 'bg-primary-500 text-white shadow-primary' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              {p}
+            </button>
+          ))}
         </div>
       )}
     </div>

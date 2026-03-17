@@ -531,24 +531,42 @@ async def admin_get_customers(page: int = 1, limit: int = 20, admin=Depends(get_
     return {"success": True, "data": users, "pagination": {"page": page, "limit": limit, "total": total}}
 
 @admin_router.get("/wishlist-stats")
-async def admin_wishlist_stats(admin=Depends(get_admin_user)):
-    """Products ranked by wishlist count — for admin dashboard"""
+async def admin_wishlist_stats(
+    page: int = 1,
+    limit: int = 20,
+    admin=Depends(get_admin_user),
+):
+    """Products ranked by wishlist count with pagination"""
     db = get_db()
+    # Count total unique products wishlisted
+    total_pipeline = [{"$group": {"_id": "$product_id"}}, {"$count": "total"}]
+    total_res = await db.wishlists.aggregate(total_pipeline).to_list(1)
+    total = total_res[0]["total"] if total_res else 0
+
+    skip = (page - 1) * limit
     pipeline = [
         {"$group": {"_id": "$product_id", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}},
-        {"$limit": 50},
+        {"$skip": skip},
+        {"$limit": limit},
     ]
-    agg = await db.wishlists.aggregate(pipeline).to_list(50)
+    agg = await db.wishlists.aggregate(pipeline).to_list(limit)
     result = []
     for item in agg:
         product = await db.products.find_one({"_id": ObjectId(item["_id"])})
         if product:
             result.append({
-                "product_id": item["_id"],
-                "name": product["name"],
+                "product_id":     item["_id"],
+                "name":           product["name"],
                 "total_wishlists": item["count"],
-                "image": product.get("images", [None])[0],
-                "price": product.get("price"),
+                "image":          product.get("images", [None])[0],
+                "price":          product.get("price"),
             })
-    return {"success": True, "data": result}
+    return {
+        "success": True,
+        "data": result,
+        "pagination": {
+            "page": page, "limit": limit, "total": total,
+            "pages": max(1, (total + limit - 1) // limit),
+        },
+    }

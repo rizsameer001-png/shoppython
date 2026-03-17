@@ -123,7 +123,6 @@ class BlogSchema(BaseModel):
     title: str = Field(..., min_length=2)
     slug: Optional[str] = None
     content: str = ""
-    blocks: List[dict] = []     # rich content blocks [{type, data}]
     excerpt: Optional[str] = None
     cover_image: Optional[str] = None
     youtube_url: Optional[str] = None
@@ -132,10 +131,6 @@ class BlogSchema(BaseModel):
     tags: List[str] = []
     status: str = "draft"       # draft | published
     is_featured: bool = False
-    # Author / byline
-    author_name: Optional[str] = None
-    author_avatar: Optional[str] = None
-    published_at: Optional[str] = None
     meta_title: Optional[str] = None
     meta_description: Optional[str] = None
 

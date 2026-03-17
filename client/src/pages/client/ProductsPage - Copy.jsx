@@ -144,48 +144,21 @@ export default function ProductsPage() {
           )}
 
           {/* Pagination */}
-          {pagination && pagination.total > 0 && (
-            <div className="mt-10 space-y-3">
-              {/* page count */}
-              <p className="text-center text-xs text-gray-400">
-                Showing {((currentFilters.page - 1) * (pagination.limit || 20)) + 1}–{Math.min(currentFilters.page * (pagination.limit || 20), pagination.total)} of {pagination.total} products
-              </p>
-              {pagination.pages > 1 && (
-                <div className="flex justify-center items-center gap-1.5 flex-wrap">
-                  {/* Prev */}
-                  <button
-                    disabled={currentFilters.page <= 1}
-                    onClick={() => updateFilter('page', currentFilters.page - 1)}
-                    className="px-3 h-9 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                  >← Prev</button>
-
-                  {/* Page numbers — show max 7 around current */}
-                  {Array.from({ length: pagination.pages }, (_, i) => i + 1)
-                    .filter(p => p === 1 || p === pagination.pages ||
-                      Math.abs(p - currentFilters.page) <= 2)
-                    .reduce((acc, p, idx, arr) => {
-                      if (idx > 0 && p - arr[idx-1] > 1) acc.push('...')
-                      acc.push(p)
-                      return acc
-                    }, [])
-                    .map((p, i) => p === '...'
-                      ? <span key={`e${i}`} className="w-9 h-9 flex items-center justify-center text-gray-400 text-sm">…</span>
-                      : <button key={p} onClick={() => updateFilter('page', p)}
-                          className={`w-9 h-9 rounded-lg text-sm font-semibold transition-all ${
-                            p === currentFilters.page
-                              ? 'bg-primary-500 text-white shadow-primary'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}>{p}</button>
-                    )}
-
-                  {/* Next */}
-                  <button
-                    disabled={currentFilters.page >= pagination.pages}
-                    onClick={() => updateFilter('page', currentFilters.page + 1)}
-                    className="px-3 h-9 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                  >Next →</button>
-                </div>
-              )}
+          {pagination && pagination.pages > 1 && (
+            <div className="flex justify-center gap-2 mt-10">
+              {Array.from({ length: pagination.pages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  onClick={() => updateFilter('page', p)}
+                  className={`w-9 h-9 rounded-lg text-sm font-semibold transition-all ${
+                    p === currentFilters.page
+                      ? 'bg-primary-500 text-white shadow-primary'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
             </div>
           )}
         </div>

@@ -123,7 +123,6 @@ class BlogSchema(BaseModel):
     title: str = Field(..., min_length=2)
     slug: Optional[str] = None
     content: str = ""
-    blocks: List[dict] = []     # rich content blocks [{type, data}]
     excerpt: Optional[str] = None
     cover_image: Optional[str] = None
     youtube_url: Optional[str] = None
@@ -132,10 +131,6 @@ class BlogSchema(BaseModel):
     tags: List[str] = []
     status: str = "draft"       # draft | published
     is_featured: bool = False
-    # Author / byline
-    author_name: Optional[str] = None
-    author_avatar: Optional[str] = None
-    published_at: Optional[str] = None
     meta_title: Optional[str] = None
     meta_description: Optional[str] = None
 
@@ -159,8 +154,8 @@ async def list_blogs(
     for d in docs:
         sid(d)
         if d.get("category_id"):
-            cat = await db.blog_categories.find_one({"_id": safe_oid(d["category_id"])})
-            d["category"] = {"id": d["category_id"], "name": cat["name"] if cat else ""} if cat else None
+            cat = await db.categories.find_one({"_id": safe_oid(d["category_id"])})
+            d["category"] = {"id": d["category_id"], "name": cat["name"] if cat else ""}
     return {"success": True, "data": docs, "pagination": {"page": page, "limit": limit, "total": total}}
 
 @blog_router.post("")
@@ -178,82 +173,6 @@ async def create_blog(body: BlogSchema, admin=Depends(get_admin_user)):
     created = await db.blogs.find_one({"_id": r.inserted_id})
     return {"success": True, "data": sid(created)}
 
-# ─── Blog Categories ──────────────────────────────────────────────────────────
-class BlogCategorySchema(BaseModel):
-    name: str = Field(..., min_length=2)
-    slug: Optional[str] = None
-    description: Optional[str] = None
-    is_active: bool = True
-
-@blog_router.get("/categories")
-async def list_blog_categories():
-    db = get_db()
-    docs = await db.blog_categories.find({"is_active": True}).sort("name", 1).to_list(200)
-    for d in docs: sid(d)
-    return {"success": True, "data": docs}
-
-@blog_router.get("/categories/all")
-async def list_all_blog_categories(admin=Depends(get_admin_user)):
-    db = get_db()
-    docs = await db.blog_categories.find({}).sort("name", 1).to_list(200)
-    for d in docs: sid(d)
-    return {"success": True, "data": docs}
-
-@blog_router.post("/categories")
-async def create_blog_category(body: BlogCategorySchema, admin=Depends(get_admin_user)):
-    db = get_db()
-    slug = body.slug or _slugify(body.name)
-    doc = body.dict()
-    doc["slug"] = slug
-    doc["created_at"] = datetime.utcnow()
-    r = await db.blog_categories.insert_one(doc)
-    created = await db.blog_categories.find_one({"_id": r.inserted_id})
-    return {"success": True, "data": sid(created)}
-
-@blog_router.put("/categories/{cat_id}")
-async def update_blog_category(cat_id: str, body: BlogCategorySchema, admin=Depends(get_admin_user)):
-    db = get_db()
-    oid = safe_oid(cat_id)
-    if not oid: raise HTTPException(422, "Invalid id")
-    r = await db.blog_categories.find_one_and_update(
-        {"_id": oid}, {"$set": body.dict()}, return_document=True
-    )
-    if not r: raise HTTPException(404, "Not found")
-    return {"success": True, "data": sid(r)}
-
-@blog_router.delete("/categories/{cat_id}")
-async def delete_blog_category(cat_id: str, admin=Depends(get_admin_user)):
-    db = get_db()
-    oid = safe_oid(cat_id)
-    if not oid: raise HTTPException(422, "Invalid id")
-    await db.blog_categories.delete_one({"_id": oid})
-    return {"success": True, "message": "Deleted"}
-
-
-@blog_router.get("/popular")
-async def list_popular_blogs(limit: int = 5):
-    db = get_db()
-    docs = await db.blogs.find({"status": "published"}).sort("view_count", -1).limit(limit).to_list(limit)
-    for d in docs:
-        sid(d)
-        if d.get("category_id"):
-            cat = await db.blog_categories.find_one({"_id": safe_oid(d["category_id"])})
-            d["category"] = {"id": d["category_id"], "name": cat["name"] if cat else ""} if cat else None
-    return {"success": True, "data": docs}
-
-@blog_router.get("/by-category/{cat_id}")
-async def list_blogs_by_category(cat_id: str, limit: int = 4, exclude_id: Optional[str] = None):
-    db = get_db()
-    q = {"status": "published", "category_id": cat_id}
-    if exclude_id:
-        oid = safe_oid(exclude_id)
-        if oid:
-            q["_id"] = {"$ne": oid}
-    docs = await db.blogs.find(q).sort("created_at", -1).limit(limit).to_list(limit)
-    for d in docs:
-        sid(d)
-    return {"success": True, "data": docs}
-
 @blog_router.get("/{blog_id}")
 async def get_blog(blog_id: str):
     db = get_db()
@@ -263,10 +182,6 @@ async def get_blog(blog_id: str):
         raise HTTPException(404, "Blog not found")
     await db.blogs.update_one({"_id": doc["_id"]}, {"$inc": {"view_count": 1}})
     sid(doc)
-    # Populate category from blog_categories
-    if doc.get("category_id"):
-        cat = await db.blog_categories.find_one({"_id": safe_oid(doc["category_id"])})
-        doc["category"] = {"id": doc["category_id"], "name": cat["name"] if cat else ""} if cat else None
     return {"success": True, "data": doc}
 
 @blog_router.put("/{blog_id}")
