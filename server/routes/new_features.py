@@ -786,3 +786,69 @@ async def upload_cms_file(
         {"$push": {"downloadable_files": file_entry}}
     )
     return {"success": True, "data": file_entry}
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STORE SETTINGS (logo, name, description, contact etc.)
+# ═════════════════════════════════════════════════════════════════════════════
+settings_router = APIRouter()
+
+class StoreSettingsSchema(BaseModel):
+    store_name: Optional[str] = "MarketPro"
+    store_tagline: Optional[str] = None
+    store_description: Optional[str] = None
+    logo_url: Optional[str] = None
+    logo_text: Optional[str] = None          # text shown beside logo
+    favicon_url: Optional[str] = None
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_address: Optional[str] = None
+    social_instagram: Optional[str] = None
+    social_twitter: Optional[str] = None
+    social_facebook: Optional[str] = None
+    social_youtube: Optional[str] = None
+    footer_description: Optional[str] = None
+    currency: Optional[str] = "INR"
+    currency_symbol: Optional[str] = "₹"
+    stats: List[dict] = []   # [{label, value}] shown in hero
+    hero_stats: List[dict] = []
+
+@settings_router.get("")
+async def get_store_settings():
+    db = get_db()
+    doc = await db.store_settings.find_one({"_id": "global"})
+    if not doc:
+        defaults = StoreSettingsSchema().dict()
+        return {"success": True, "data": defaults}
+    doc.pop("_id", None)
+    return {"success": True, "data": doc}
+
+@settings_router.put("")
+async def update_store_settings(body: StoreSettingsSchema, admin=Depends(get_admin_user)):
+    db = get_db()
+    # Save everything that was sent — but never overwrite logo_url with empty string
+    # because the upload endpoint sets it directly
+    raw = body.dict()
+    # Protect logo_url: only update if non-empty value provided
+    existing = await db.store_settings.find_one({"_id": "global"}) or {}
+    if not raw.get("logo_url"):
+        # Keep whatever is already in the DB
+        raw["logo_url"] = existing.get("logo_url", "")
+    await db.store_settings.update_one(
+        {"_id": "global"},
+        {"$set": raw},
+        upsert=True,
+    )
+    return {"success": True, "data": raw}
+
+@settings_router.post("/upload-logo")
+async def upload_store_logo(file: UploadFile = File(...), admin=Depends(get_admin_user)):
+    db = get_db()
+    from config.cloudinary_config import upload_image
+    data = await file.read()
+    result = await upload_image(data, folder="marketpro/settings")
+    url = result.get("url", "")   # upload_image returns {"url": ..., "public_id": ...}
+    if not url:
+        raise HTTPException(500, "Cloudinary upload returned no URL")
+    await db.store_settings.update_one({"_id": "global"}, {"$set": {"logo_url": url}}, upsert=True)
+    return {"success": True, "data": {"url": url}}

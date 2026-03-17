@@ -455,7 +455,16 @@ export default function HomePage() {
       {/* ── Mid banners ── */}
       <MidBanners banners={midBanners} />
 
-      {/* ── Side banners + CMS cards ── */}
+      {/* ── New Arrivals ── */}
+      <NewArrivalsSection products={newArrivals} loading={arrivLoading} />
+
+      {/* ── Featured Products ── */}
+      <FeaturedSection products={featured} loading={featuredLoading} />
+
+      {/* ── Side banners + CMS cards + Blog grid ── */}
+      <BlogSection blogs={recentBlogs} />
+
+      {/* Side banners + CMS below blog if any */}
       {(sideBanners.length > 0 || cmsCards.length > 0) && (
         <section className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -480,15 +489,6 @@ export default function HomePage() {
           </div>
         </section>
       )}
-
-      {/* ── New Arrivals ── */}
-      <NewArrivalsSection products={newArrivals} loading={arrivLoading} />
-
-      {/* ── Featured Products ── */}
-      <FeaturedSection products={featured} loading={featuredLoading} />
-
-      {/* ── Side banners + CMS cards + Blog grid ── */}
-      <BlogSection blogs={recentBlogs} />
 
       {/* ── Newsletter ── */}
       <section className="bg-gradient-to-r from-primary-600 to-primary-500 py-16">

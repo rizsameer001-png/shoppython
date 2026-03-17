@@ -17,6 +17,7 @@ from .new_features import (
     banner_router,
     bulk_router,
     cms_router,
+    settings_router,
 )
 
 __all__ = [
@@ -35,5 +36,6 @@ __all__ = [
     "banner_router",
     "bulk_router",
     "cms_router",
+    "settings_router",
     "payment_router",
 ]

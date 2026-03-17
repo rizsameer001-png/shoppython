@@ -42,7 +42,6 @@ export default function ClientLayout() {
     return () => window.removeEventListener('scroll', handler)
   }, [])
 
-  // Load CMS pages and store settings once on mount
   useEffect(() => {
     api.get('/cms/public').then(r => {
       const pages = r.data.data || []
@@ -50,13 +49,6 @@ export default function ClientLayout() {
     }).catch(() => {})
     api.get('/settings').then(r => setStore(r.data.data || {})).catch(() => {})
   }, [])
-
-  // Re-fetch settings when navigating away from /admin so logo updates immediately
-  useEffect(() => {
-    if (!location.pathname.startsWith('/admin')) {
-      api.get('/settings').then(r => setStore(r.data.data || {})).catch(() => {})
-    }
-  }, [location.pathname])
 
   // Close user menu on outside click
   useEffect(() => {
@@ -88,15 +80,9 @@ export default function ClientLayout() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-              {storeSettings.logo_url && storeSettings.logo_url.length > 5
-                ? (
-                  <img
-                    src={storeSettings.logo_url}
-                    alt={storeSettings.store_name || 'Logo'}
-                    className="h-9 w-auto object-contain max-w-[160px]"
-                  />
-                ) : (
-                  <>
+              {storeSettings.logo_url
+                ? <img src={storeSettings.logo_url} alt={storeSettings.store_name || 'Logo'} className="h-9 w-auto object-contain max-w-[140px]" />
+                : <>
                     <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center flex-shrink-0">
                       <ShoppingCart className="w-4 h-4 text-white" />
                     </div>
@@ -104,7 +90,6 @@ export default function ClientLayout() {
                       {storeSettings.logo_text || storeSettings.store_name || <>Market<span className="text-primary-500">Pro</span></>}
                     </span>
                   </>
-                )
               }
             </Link>
 
@@ -264,15 +249,9 @@ export default function ClientLayout() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              {storeSettings.logo_url && storeSettings.logo_url.length > 5
-                ? (
-                  <img
-                    src={storeSettings.logo_url}
-                    alt={storeSettings.store_name || 'Logo'}
-                    className="h-8 w-auto object-contain max-w-[120px] brightness-0 invert opacity-90"
-                  />
-                ) : (
-                  <>
+              {storeSettings.logo_url
+                ? <img src={storeSettings.logo_url} alt={storeSettings.store_name || 'Logo'} className="h-8 w-auto object-contain max-w-[120px] brightness-0 invert opacity-90" />
+                : <>
                     <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center flex-shrink-0">
                       <ShoppingCart className="w-4 h-4 text-white" />
                     </div>
@@ -280,10 +259,7 @@ export default function ClientLayout() {
                       {storeSettings.store_name || <span>Market<span className="text-primary-400">Pro</span></span>}
                     </span>
                   </>
-                )
               }
-                
-              
             </div>
             <p className="text-gray-400 text-sm leading-relaxed">
               {storeSettings.footer_description || 'Premium products, delivered fast. Shop with confidence.'}

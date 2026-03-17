@@ -38,6 +38,7 @@ import AdminBlog        from '@/pages/admin/AdminBlog'
 import AdminBanners     from '@/pages/admin/AdminBanners'
 import AdminBulkImport  from '@/pages/admin/AdminBulkImport'
 import AdminCMS         from '@/pages/admin/AdminCMS'
+import AdminSettings    from '@/pages/admin/AdminSettings'
 import BlogPage         from '@/pages/client/BlogPage'
 import BlogPostPage     from '@/pages/client/BlogPostPage'
 import CmsPage          from '@/pages/client/CmsPage'
@@ -130,6 +131,7 @@ export default function App() {
           <Route path="banners"        element={<AdminBanners />} />
           <Route path="bulk"           element={<AdminBulkImport />} />
           <Route path="cms"            element={<AdminCMS />} />
+          <Route path="settings"        element={<AdminSettings />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

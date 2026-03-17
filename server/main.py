@@ -24,7 +24,7 @@ from routes import (
     auth_router, product_router, category_router, brand_router,
     cart_router, wishlist_router, order_router, upload_router,
     user_router, admin_router,
-    attribute_router, blog_router, banner_router, bulk_router, cms_router, payment_router,
+    attribute_router, blog_router, banner_router, bulk_router, cms_router, settings_router, payment_router,
 )
 
 logging.basicConfig(
@@ -97,6 +97,7 @@ app.include_router(banner_router,    prefix=f"{PREFIX}/banners",     tags=["Bann
 app.include_router(bulk_router,      prefix=f"{PREFIX}/bulk",        tags=["Bulk"])
 app.include_router(cms_router,       prefix=f"{PREFIX}/cms",         tags=["CMS"])
 app.include_router(payment_router,   prefix=f"{PREFIX}/payment",     tags=["Payment"])
+app.include_router(settings_router,  prefix=f"{PREFIX}/settings",    tags=["Settings"])
 
 
 if __name__ == "__main__":

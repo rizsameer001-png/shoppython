@@ -4,7 +4,7 @@ import { useState } from 'react'
 import {
   LayoutDashboard, Package, Tags, Award, ShoppingBag,
   Users, Heart, LogOut, Menu, X, ChevronRight, ShoppingCart,
-  BookOpen, Megaphone, Upload, FileText
+  BookOpen, Megaphone, Upload, FileText, Settings
 } from 'lucide-react'
 import { logout } from '@/store/slices/authSlice'
 
@@ -21,6 +21,7 @@ const NAV = [
   { label: 'Banners & Ads',   to: '/admin/banners',          icon: Megaphone },
   { label: 'Bulk Import',     to: '/admin/bulk',             icon: Upload },
   { label: 'CMS Pages',      to: '/admin/cms',              icon: FileText },
+  { label: 'Store Settings',  to: '/admin/settings',         icon: Settings },
 ]
 
 export default function AdminLayout() {
