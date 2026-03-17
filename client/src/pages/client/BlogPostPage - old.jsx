@@ -5,44 +5,25 @@ import api from '@/api/axios'
 
 /* ── Block renderer ───────────────────────────────────────────────────────── */
 function BlockRenderer({ blocks }) {
-
   useEffect(() => {
-    const hasInsta   = blocks.some(b => b.type === 'instagram')
-    const hasTwitter = blocks.some(b => b.type === 'twitter')
-
-    /* ── Instagram ── */
-    if (hasInsta) {
-      if (window.instgrm) {
-        // SDK already loaded — just re-process all blockquotes on the page
-        window.instgrm.Embeds.process()
-      } else {
-        // First load — process() after script executes
-        const s = document.createElement('script')
-        s.src = 'https://www.instagram.com/embed.js'
-        s.async = true
-        s.onload = () => window.instgrm?.Embeds.process()
-        document.body.appendChild(s)
-      }
+    // Load Instagram embed script if page has instagram blocks
+    if (blocks.some(b => b.type === 'instagram') && !window.instgrm) {
+      const s = document.createElement('script')
+      s.src = 'https://www.instagram.com/embed.js'
+      s.async = true
+      document.body.appendChild(s)
     }
-
-    /* ── Twitter / X ── */
-    if (hasTwitter) {
-      if (window.twttr?.widgets) {
-        // SDK already loaded — load widgets inside this container
-        window.twttr.widgets.load(document.getElementById('blog-blocks'))
-      } else {
-        const s = document.createElement('script')
-        s.src = 'https://platform.twitter.com/widgets.js'
-        s.async = true
-        s.onload = () =>
-          window.twttr?.widgets.load(document.getElementById('blog-blocks'))
-        document.body.appendChild(s)
-      }
+    // Load Twitter widget script if page has twitter blocks
+    if (blocks.some(b => b.type === 'twitter') && !window.twttr) {
+      const s = document.createElement('script')
+      s.src = 'https://platform.twitter.com/widgets.js'
+      s.async = true
+      document.body.appendChild(s)
     }
   }, [blocks])
 
   return (
-    <div id="blog-blocks" className="space-y-5">
+    <div className="space-y-5">
       {blocks.map((block, i) => {
         const d = block.data || {}
         switch (block.type) {
@@ -83,25 +64,19 @@ function BlockRenderer({ blocks }) {
             ) : null
           case 'instagram':
             return d.url ? (
-              <div key={i} className="my-6 flex flex-col items-center">
-                {/* Instagram SDK replaces this blockquote with the full embed */}
-                <blockquote
-                  className="instagram-media"
-                  data-instgrm-permalink={d.url}
-                  data-instgrm-version="14"
-                  data-instgrm-captioned
-                  style={{ maxWidth: 540, minWidth: 326, width: '100%', margin: '0 auto' }}
-                />
+              <div key={i} className="my-6 flex justify-center">
+                <blockquote className="instagram-media" data-instgrm-permalink={d.url}
+                  data-instgrm-version="14" style={{maxWidth:540,minWidth:326,width:'100%'}}>
+                  <a href={d.url} target="_blank" rel="noreferrer" className="text-primary-500 text-sm">View on Instagram</a>
+                </blockquote>
                 {d.caption && <p className="text-center text-sm text-gray-500 mt-2 italic">{d.caption}</p>}
               </div>
             ) : null
           case 'twitter':
             return d.url ? (
               <div key={i} className="my-6 flex justify-center">
-                {/* Twitter SDK replaces this blockquote with the full widget */}
-                <blockquote className="twitter-tweet" data-dnt="true" data-theme="light">
-                  {/* The SDK reads the href of the last <a> tag as the tweet URL */}
-                  <a href={d.url.replace('x.com', 'twitter.com')}></a>
+                <blockquote className="twitter-tweet" data-dnt="true">
+                  <a href={d.url} target="_blank" rel="noreferrer" className="text-primary-500 text-sm">View on X/Twitter</a>
                 </blockquote>
               </div>
             ) : null
@@ -362,12 +337,12 @@ export default function BlogPostPage() {
         <article className="flex-1 min-w-0">
 
           {/* Hero media — cover image OR youtube OR video */}
-          {post.cover_image && (
+ {/*         {post.cover_image && (
             <div className="rounded-2xl overflow-hidden mb-8 shadow-lg">
               <img
                 src={post.cover_image}
                 alt={post.title}
-                className="w-full max-h-[500px] object-cover"
+                className="w-full max-h-[900px] object-cover"
               />
             </div>
           )}
@@ -381,7 +356,48 @@ export default function BlogPostPage() {
           )}
           {post.video_url && !post.youtube_url && (
             <video src={post.video_url} controls className="w-full rounded-2xl mb-8 shadow-lg max-h-96" />
-          )}
+          )}*/}
+
+          {/* Image Section: Adapts to portrait or landscape without cropping */}
+{post.cover_image && (
+  <div className="rounded-2xl overflow-hidden mb-8 shadow-lg bg-gray-50 flex justify-center">
+    <img
+      src={post.cover_image}
+      alt={post.title}
+      /* h-auto + max-h-[85vh]: Allows the image to scale naturally. 
+         85vh ensures the user can see the image and a bit of text below it.
+         object-contain: Ensures the whole fashion piece is visible.
+      */
+      className="w-full h-auto max-h-[85vh] object-contain"
+    />
+  </div>
+)}
+
+{/* YouTube Section: Standard 16:9 ratio for video players */}
+{post.youtube_url && (
+  <div className="rounded-2xl overflow-hidden aspect-video mb-8 bg-black shadow-lg">
+    <iframe
+      src={post.youtube_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'www.youtube.com/embed/')}
+      allow="autoplay; fullscreen"
+      allowFullScreen
+      className="w-full h-full"
+    />
+  </div>
+)}
+
+{/* Native Video Section: Flexible for TikTok-style vertical or wide video */}
+{post.video_url && !post.youtube_url && (
+  <div className="rounded-2xl overflow-hidden mb-8 shadow-lg bg-black flex justify-center">
+    <video 
+      src={post.video_url} 
+      controls 
+      /* Removing fixed 'max-h-96' allows for tall vertical videos 
+         common in fashion tech/social media style posts.
+      */
+      className="w-full h-auto max-h-[85vh]" 
+    />
+  </div>
+)}
 
           {/* Category pill */}
           {post.category && (
