@@ -10,6 +10,7 @@ from .misc import (
     user_router,
     admin_router,
 )
+from .payments import payment_router
 from .new_features import (
     attribute_router,
     blog_router,
@@ -34,4 +35,5 @@ __all__ = [
     "banner_router",
     "bulk_router",
     "cms_router",
+    "payment_router",
 ]

@@ -24,7 +24,7 @@ from routes import (
     auth_router, product_router, category_router, brand_router,
     cart_router, wishlist_router, order_router, upload_router,
     user_router, admin_router,
-    attribute_router, blog_router, banner_router, bulk_router, cms_router,
+    attribute_router, blog_router, banner_router, bulk_router, cms_router, payment_router,
 )
 
 logging.basicConfig(

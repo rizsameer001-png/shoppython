@@ -142,12 +142,14 @@ async def delete_media(body: dict, admin=Depends(get_admin_user)):
 cart_router = APIRouter()
 
 async def get_or_create_cart(user_id: str, db):
-    cart = await db.carts.find_one({"user_id": user_id})
-    if not cart:
-        cart = {"user_id": user_id, "items": [], "created_at": datetime.utcnow()}
-        result = await db.carts.insert_one(cart)
-        cart["_id"] = result.inserted_id
-    return cart
+    # upsert=True atomically creates the doc if it doesn't exist —
+    # eliminates the race condition between find_one and insert_one
+    await db.carts.update_one(
+        {"user_id": user_id},
+        {"$setOnInsert": {"user_id": user_id, "items": [], "created_at": datetime.utcnow()}},
+        upsert=True,
+    )
+    return await db.carts.find_one({"user_id": user_id})
 
 async def serialize_cart(cart: dict, db):
     items = []
@@ -194,7 +196,7 @@ async def add_to_cart(body: CartItemSchema, user=Depends(get_current_user)):
     if not found:
         items.append({"product_id": body.product_id, "quantity": body.quantity, "variant": body.variant})
 
-    await db.carts.update_one({"user_id": uid}, {"$set": {"items": items}})
+    await db.carts.update_one({"user_id": uid}, {"$set": {"items": items}}, upsert=True)
     cart["items"] = items
     return {"success": True, "data": await serialize_cart(cart, db)}
 
@@ -206,7 +208,7 @@ async def update_cart_item(product_id: str, body: UpdateCartItemSchema, user=Dep
     items = [i for i in cart.get("items", []) if i["product_id"] != product_id]
     if body.quantity > 0:
         items.append({"product_id": product_id, "quantity": body.quantity})
-    await db.carts.update_one({"user_id": uid}, {"$set": {"items": items}})
+    await db.carts.update_one({"user_id": uid}, {"$set": {"items": items}}, upsert=True)
     cart["items"] = items
     return {"success": True, "data": await serialize_cart(cart, db)}
 
@@ -274,6 +276,43 @@ async def check_wishlist(product_id: str, user=Depends(get_current_user)):
 # ─── Orders ───────────────────────────────────────────────────────────────────
 order_router = APIRouter()
 
+
+def _clean_order(o: dict) -> dict:
+    """
+    Convert a raw Motor order document to a JSON-safe dict.
+    Handles:
+      - ObjectId _id → string id
+      - datetime fields → ISO strings  
+      - OrderStatus Enum → plain string value
+      - Nested ObjectId / datetime in sub-dicts
+    """
+    from datetime import datetime as _dt
+    out = {}
+    for k, v in o.items():
+        if k == "_id":
+            out["id"] = str(v)
+            continue
+        if isinstance(v, ObjectId):
+            out[k] = str(v)
+        elif isinstance(v, _dt):
+            out[k] = v.isoformat()
+        elif hasattr(v, "value"):          # Enum (OrderStatus etc.)
+            out[k] = v.value
+        elif isinstance(v, dict):
+            out[k] = _clean_order(v)
+        elif isinstance(v, list):
+            out[k] = [
+                _clean_order(i) if isinstance(i, dict)
+                else str(i) if isinstance(i, ObjectId)
+                else i.value if hasattr(i, "value")
+                else i.isoformat() if isinstance(i, _dt)
+                else i
+                for i in v
+            ]
+        else:
+            out[k] = v
+    return out
+
 @order_router.post("")
 async def place_order(body: PlaceOrderSchema, user=Depends(get_current_user)):
     db = get_db()
@@ -322,7 +361,6 @@ async def place_order(body: PlaceOrderSchema, user=Depends(get_current_user)):
     }
 
     result = await db.orders.insert_one(order)
-    order["id"] = str(result.inserted_id)
 
     # Update sales count & clear cart
     for ci in cart["items"]:
@@ -332,7 +370,10 @@ async def place_order(body: PlaceOrderSchema, user=Depends(get_current_user)):
         )
     await db.carts.update_one({"user_id": uid}, {"$set": {"items": []}})
 
-    return {"success": True, "message": "Order placed successfully", "data": order}
+    # ✅ Re-fetch + clean — never reuse the dict passed to insert_one.
+    # _clean_order handles ObjectId, datetime, and Enum serialization.
+    saved = await db.orders.find_one({"_id": result.inserted_id})
+    return {"success": True, "message": "Order placed successfully", "data": _clean_order(saved)}
 
 @order_router.get("")
 async def get_my_orders(page: int = 1, limit: int = 10, user=Depends(get_current_user)):
@@ -341,9 +382,7 @@ async def get_my_orders(page: int = 1, limit: int = 10, user=Depends(get_current
     total = await db.orders.count_documents({"user_id": uid})
     skip = (page - 1) * limit
     orders = await db.orders.find({"user_id": uid}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
-    for o in orders:
-        o["id"] = str(o.pop("_id"))
-    return {"success": True, "data": orders, "pagination": {"page": page, "limit": limit, "total": total}}
+    return {"success": True, "data": [_clean_order(o) for o in orders], "pagination": {"page": page, "limit": limit, "total": total}}
 
 @order_router.get("/{order_id}")
 async def get_order(order_id: str, user=Depends(get_current_user)):
@@ -351,8 +390,7 @@ async def get_order(order_id: str, user=Depends(get_current_user)):
     order = await db.orders.find_one({"_id": ObjectId(order_id), "user_id": str(user["_id"])})
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    order["id"] = str(order.pop("_id"))
-    return {"success": True, "data": order}
+    return {"success": True, "data": _clean_order(order)}
 
 @order_router.post("/{order_id}/return")
 async def request_return(order_id: str, body: ReturnRequestSchema, user=Depends(get_current_user)):
@@ -452,12 +490,14 @@ async def admin_get_orders(page: int = 1, limit: int = 20, status: Optional[str]
     total = await db.orders.count_documents(query)
     skip = (page - 1) * limit
     orders = await db.orders.find(query).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    cleaned = []
     for o in orders:
-        o["id"] = str(o.pop("_id"))
-        user = await db.users.find_one({"_id": ObjectId(o["user_id"])})
-        o["customer_name"] = user["name"] if user else "Unknown"
-        o["customer_email"] = user["email"] if user else ""
-    return {"success": True, "data": orders, "pagination": {"page": page, "limit": limit, "total": total}}
+        co = _clean_order(o)
+        user_doc = await db.users.find_one({"_id": ObjectId(o["user_id"])}) if o.get("user_id") else None
+        co["customer_name"]  = user_doc["name"]  if user_doc else "Unknown"
+        co["customer_email"] = user_doc["email"] if user_doc else ""
+        cleaned.append(co)
+    return {"success": True, "data": cleaned, "pagination": {"page": page, "limit": limit, "total": total}}
 
 @admin_router.put("/orders/{order_id}/status")
 async def update_order_status(order_id: str, body: dict, admin=Depends(get_admin_user)):

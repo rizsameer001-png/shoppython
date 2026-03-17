@@ -20,6 +20,15 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD: str = "Admin@123456"
     APP_ENV: str = "development"
 
+    # Payment gateways
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_PUBLISHABLE_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+    UPI_ID: str = ""
+    UPI_NAME: str = "MarketPro Store"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

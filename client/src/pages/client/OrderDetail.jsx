@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { Package, Truck, MapPin, CreditCard, ChevronLeft, RefreshCw } from 'lucide-react'
 import api from '@/api/axios'
 import toast from 'react-hot-toast'
@@ -14,7 +14,18 @@ export default function OrderDetail() {
   const [returnReason, setReturnReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  const [searchParams] = useSearchParams()
+
   useEffect(() => {
+    // Handle Stripe redirect verification
+    const stripeVerify = searchParams.get('stripe_verify')
+    const pi           = searchParams.get('pi')
+    if (stripeVerify === '1' && pi) {
+      api.post('/payment/stripe/verify', { payment_intent_id: pi, order_id: id })
+        .then(() => toast.success('Payment verified! 🎉'))
+        .catch(() => toast.error('Could not verify Stripe payment — please contact support'))
+    }
+
     api.get(`/orders/${id}`).then(r => { setOrder(r.data.data); setLoading(false) }).catch(() => setLoading(false))
   }, [id])
 

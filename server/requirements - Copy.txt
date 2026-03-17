@@ -14,6 +14,3 @@ Pillow==11.0.0
 aiofiles==23.2.1
 email-validator==2.1.1
 slowapi==0.1.9
-# Payment gateways (install whichever you use)
-razorpay==1.4.2
-stripe==8.9.0
