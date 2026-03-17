@@ -228,6 +228,25 @@ export default function ProductDetail() {
             <p className="text-gray-600 text-sm leading-relaxed">{product.short_description}</p>
           )}
 
+          {/* Inline attribute swatches */}
+          {product.attributes?.filter(a => a.selected_values?.length > 0).map((attr, i) => (
+            <div key={i} className="space-y-2">
+              <p className="text-sm font-semibold text-gray-700">{attr.name}</p>
+              <div className="flex flex-wrap gap-2">
+                {attr.selected_values.map(v => (
+                  attr.type === 'color' ? (
+                    <span key={v} title={v}
+                      className="w-7 h-7 rounded-full border-2 border-white shadow-sm cursor-pointer hover:scale-110 transition-transform"
+                      style={{ backgroundColor: v.startsWith('#') ? v : undefined }}
+                    />
+                  ) : (
+                    <span key={v} className="px-3 py-1 bg-gray-100 hover:bg-primary-50 hover:text-primary-700 border border-gray-200 hover:border-primary-300 text-gray-700 rounded-lg text-xs font-medium cursor-pointer transition-colors">{v}</span>
+                  )
+                ))}
+              </div>
+            </div>
+          ))}
+
           {/* Variants */}
           {product.variants?.length > 0 && (
             <div>
@@ -310,7 +329,7 @@ export default function ProductDetail() {
       {/* Tabs */}
       <div className="mb-16">
         <div className="flex gap-1 bg-gray-100 rounded-2xl p-1.5 w-fit mb-6">
-          {['description','details','reviews'].map(tab => (
+          {['description','details','attributes','reviews'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -348,6 +367,38 @@ export default function ProductDetail() {
           <div className="text-center py-10 text-gray-400">
             <Star className="w-10 h-10 mx-auto mb-3 text-gray-200" />
             <p className="font-semibold">Reviews coming soon</p>
+          </div>
+        )}
+        {activeTab === 'attributes' && (
+          <div className="space-y-4 max-w-2xl">
+            {!product.attributes?.length ? (
+              <p className="text-gray-400 text-sm py-4">No attributes specified for this product.</p>
+            ) : product.attributes.map((attr, i) => (
+              <div key={i} className="border border-gray-100 rounded-xl p-4">
+                <p className="font-semibold text-gray-800 text-sm mb-3">{attr.name}</p>
+                {attr.type === 'color' ? (
+                  <div className="flex flex-wrap gap-2">
+                    {attr.selected_values?.map(v => {
+                      const valObj = typeof v === 'string' ? { value: v } : v
+                      return (
+                        <span key={valObj.value} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-xl text-sm">
+                          {valObj.color_hex && <span className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" style={{ backgroundColor: valObj.color_hex }} />}
+                          {valObj.value}
+                        </span>
+                      )
+                    })}
+                  </div>
+                ) : attr.type === 'size_chart' ? (
+                  <p className="text-sm text-gray-500">See size chart above</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {attr.selected_values?.map(v => (
+                      <span key={v} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium">{v}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>

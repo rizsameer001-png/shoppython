@@ -95,6 +95,8 @@ app.include_router(attribute_router, prefix=f"{PREFIX}/attributes",  tags=["Attr
 app.include_router(blog_router,      prefix=f"{PREFIX}/blogs",       tags=["Blog"])
 app.include_router(banner_router,    prefix=f"{PREFIX}/banners",     tags=["Banners"])
 app.include_router(bulk_router,      prefix=f"{PREFIX}/bulk",        tags=["Bulk"])
+app.include_router(cms_router,       prefix=f"{PREFIX}/cms",         tags=["CMS"])
+app.include_router(payment_router,   prefix=f"{PREFIX}/payment",     tags=["Payment"])
 
 
 if __name__ == "__main__":

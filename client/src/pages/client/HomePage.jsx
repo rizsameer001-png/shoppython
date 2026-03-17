@@ -13,7 +13,7 @@ const HERO_FEATURES = [
   { icon: Headphones,  label: '24/7 Support',     sub: 'Always here for you' },
 ]
 
-function HeroSection() {
+function HeroSection({ banners = [] }) {
   return (
     <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white overflow-hidden">
       {/* Background dots pattern */}
@@ -24,57 +24,79 @@ function HeroSection() {
       <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary-600/10 rounded-full filter blur-3xl" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div className="animate-slide-up">
-            <div className="inline-flex items-center gap-2 bg-primary-500/20 border border-primary-500/30 rounded-full px-4 py-2 text-primary-300 text-sm font-semibold mb-6">
-              <Zap className="w-4 h-4" />
-              New Season Sale — Up to 70% Off
+        {banners.length > 0 ? (
+          /* ── Dynamic hero banner from admin ── */
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="animate-slide-up">
+              {banners[0].badge_text && (
+                <div className="inline-flex items-center gap-2 bg-primary-500/20 border border-primary-500/30 rounded-full px-4 py-2 text-primary-300 text-sm font-semibold mb-6">
+                  <Zap className="w-4 h-4" />
+                  {banners[0].badge_text}
+                </div>
+              )}
+              <h1 className="font-display text-5xl lg:text-6xl font-bold leading-tight mb-4" style={{ color: banners[0].text_color || undefined }}>
+                {banners[0].title}
+              </h1>
+              {banners[0].subtitle && (
+                <p className="text-gray-300 text-lg leading-relaxed mb-8 max-w-lg">{banners[0].subtitle}</p>
+              )}
+              <div className="flex flex-wrap gap-4">
+                {banners[0].link_url && (
+                  <Link to={banners[0].link_url} className="btn-primary text-base px-8 py-4 shadow-primary">
+                    {banners[0].link_text || 'Shop Now'} <ArrowRight className="w-5 h-5" />
+                  </Link>
+                )}
+                <Link to="/products?new_arrival=true" className="inline-flex items-center gap-2 px-8 py-4 border-2 border-white/20 text-white rounded-xl font-semibold hover:bg-white/10 transition-all duration-200">
+                  New Arrivals
+                </Link>
+              </div>
             </div>
-            <h1 className="font-display text-5xl lg:text-7xl font-bold leading-tight mb-6">
-              Shop <span className="text-primary-400">Premium</span><br />
-              Products
-            </h1>
-            <p className="text-gray-300 text-lg leading-relaxed mb-8 max-w-lg">
-              Discover thousands of curated products across all categories. Quality guaranteed, delivered fast.
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <Link to="/products" className="btn-primary text-base px-8 py-4 shadow-primary">
-                Shop Now <ArrowRight className="w-5 h-5" />
-              </Link>
-              <Link to="/products?new_arrival=true" className="inline-flex items-center gap-2 px-8 py-4 border-2 border-white/20 text-white rounded-xl font-semibold hover:bg-white/10 transition-all duration-200">
-                New Arrivals
-              </Link>
+            <div className="hidden lg:flex items-center justify-center animate-fade-in">
+              {banners[0].image
+                ? <img src={banners[0].image} alt={banners[0].title} className="max-h-96 w-full object-cover rounded-3xl shadow-2xl" />
+                : <div className="grid grid-cols-2 gap-4 w-full">
+                    {['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop','https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=300&fit=crop','https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=400&h=300&fit=crop','https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=400&h=400&fit=crop'].map((src, i) => (
+                      <div key={i} className={`rounded-2xl overflow-hidden ${i===0||i===3?'aspect-square':'aspect-[4/3]'}`}>
+                        <img src={src} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+              }
             </div>
-
-            {/* Stats */}
-            <div className="flex gap-8 mt-12">
-              {[['50K+','Products'],['200K+','Customers'],['4.8★','Rating']].map(([n,l]) => (
-                <div key={l}>
-                  <p className="font-display font-bold text-2xl text-white">{n}</p>
-                  <p className="text-gray-400 text-sm">{l}</p>
+          </div>
+        ) : (
+          /* ── Default static hero (shown when no banners configured) ── */
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="animate-slide-up">
+              <div className="inline-flex items-center gap-2 bg-primary-500/20 border border-primary-500/30 rounded-full px-4 py-2 text-primary-300 text-sm font-semibold mb-6">
+                <Zap className="w-4 h-4" />
+                New Season Sale — Up to 70% Off
+              </div>
+              <h1 className="font-display text-5xl lg:text-7xl font-bold leading-tight mb-6">
+                Shop <span className="text-primary-400">Premium</span><br />Products
+              </h1>
+              <p className="text-gray-300 text-lg leading-relaxed mb-8 max-w-lg">
+                Discover thousands of curated products across all categories. Quality guaranteed, delivered fast.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <Link to="/products" className="btn-primary text-base px-8 py-4 shadow-primary">Shop Now <ArrowRight className="w-5 h-5" /></Link>
+                <Link to="/products?new_arrival=true" className="inline-flex items-center gap-2 px-8 py-4 border-2 border-white/20 text-white rounded-xl font-semibold hover:bg-white/10 transition-all duration-200">New Arrivals</Link>
+              </div>
+              <div className="flex gap-8 mt-12">
+                {[['50K+','Products'],['200K+','Customers'],['4.8★','Rating']].map(([n,l]) => (
+                  <div key={l}><p className="font-display font-bold text-2xl text-white">{n}</p><p className="text-gray-400 text-sm">{l}</p></div>
+                ))}
+              </div>
+            </div>
+            <div className="hidden lg:grid grid-cols-2 gap-4 animate-fade-in">
+              {['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop','https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=300&fit=crop','https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=400&h=300&fit=crop','https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=400&h=400&fit=crop'].map((src,i)=>(
+                <div key={i} className={`rounded-2xl overflow-hidden ${i===0||i===3?'aspect-square':'aspect-[4/3]'} animate-float`} style={{animationDelay:`${i*0.3}s`}}>
+                  <img src={src} alt="" className="w-full h-full object-cover" />
                 </div>
               ))}
             </div>
           </div>
-
-          {/* Hero image collage */}
-          <div className="hidden lg:grid grid-cols-2 gap-4 animate-fade-in">
-            {[
-              'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop',
-              'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=300&fit=crop',
-              'https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=400&h=300&fit=crop',
-              'https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=400&h=400&fit=crop',
-            ].map((src, i) => (
-              <div
-                key={i}
-                className={`rounded-2xl overflow-hidden ${i === 0 || i === 3 ? 'aspect-square' : 'aspect-[4/3]'} animate-float`}
-                style={{ animationDelay: `${i * 0.3}s` }}
-              >
-                <img src={src} alt="" className="w-full h-full object-cover" />
-              </div>
-            ))}
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Features bar */}
@@ -199,7 +221,7 @@ export default function HomePage() {
     dispatch(fetchProducts({ featured: true, limit: 8 }))
 
     // Load hero banners
-    api.get('/banners?position=home&type=hero').then(r => setHeroBanners(r.data.data || [])).catch(()=>{})
+    api.get('/banners?position=home').then(r => setHeroBanners(r.data.data || [])).catch(()=>{})
     // Load sidebar banners
     api.get('/banners?position=sidebar').then(r => setSideBanners(r.data.data || [])).catch(()=>{})
     // Load recent blogs
@@ -221,7 +243,7 @@ export default function HomePage() {
 
   return (
     <div>
-      <HeroSection />
+      <HeroSection banners={heroBanners} />
       <CategoryGrid categories={categories} />
       <BannerSection />
 

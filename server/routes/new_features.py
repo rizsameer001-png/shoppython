@@ -125,6 +125,8 @@ class BlogSchema(BaseModel):
     content: str = ""
     excerpt: Optional[str] = None
     cover_image: Optional[str] = None
+    youtube_url: Optional[str] = None
+    video_url: Optional[str] = None
     category_id: Optional[str] = None
     tags: List[str] = []
     status: str = "draft"       # draft | published
@@ -567,6 +569,9 @@ class CmsPageSchema(BaseModel):
     status: str = "draft"          # draft | published
     is_featured: bool = False
     show_on_home: bool = False      # display download/link card on homepage
+    # Navigation placement
+    menu_location: str = "none"    # none | header | footer | both
+    open_in_new_tab: bool = False
     # File download support
     downloadable_files: List[dict] = []  # [{name, url, public_id, size, type}]
     allow_download: bool = False
@@ -592,11 +597,17 @@ async def list_cms_pages(
     return {"success": True, "data": docs}
 
 @cms_router.get("/public")
-async def list_public_cms_pages(show_on_home: Optional[bool] = None):
+async def list_public_cms_pages(
+    show_on_home: Optional[bool] = None,
+    menu_location: Optional[str] = None,
+):
     db = get_db()
     q: dict = {"status": "published"}
     if show_on_home is not None:
         q["show_on_home"] = show_on_home
+    if menu_location:
+        # pages with location = menu_location OR "both"
+        q["menu_location"] = {"$in": [menu_location, "both"]}
     docs = await db.cms_pages.find(q).sort("sort_order", 1).to_list(200)
     for d in docs:
         sid(d)

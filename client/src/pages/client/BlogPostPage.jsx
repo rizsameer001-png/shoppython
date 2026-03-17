@@ -31,6 +31,18 @@ export default function BlogPostPage() {
         </div>
       )}
 
+      {post.youtube_url && (
+        <div className="rounded-2xl overflow-hidden aspect-video mb-8 bg-black">
+          <iframe
+            src={post.youtube_url.replace('watch?v=','embed/').replace('youtu.be/','www.youtube.com/embed/')}
+            allow="autoplay; fullscreen" allowFullScreen className="w-full h-full"
+          />
+        </div>
+      )}
+      {post.video_url && !post.youtube_url && (
+        <video src={post.video_url} controls className="w-full rounded-2xl mb-8 max-h-96" />
+      )}
+
       {post.category && <p className="text-primary-500 font-semibold text-sm uppercase tracking-widest mb-2">{post.category.name}</p>}
       <h1 className="section-title mb-4">{post.title}</h1>
 

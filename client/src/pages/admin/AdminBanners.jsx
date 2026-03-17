@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Plus, Edit, Trash2, X, Save, Megaphone, Image as ImageIcon, Monitor, Layout, Sparkles, ShoppingBag, Bell } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
+import { Plus, Edit, Trash2, X, Save, Megaphone, Image as ImageIcon, Monitor, Layout, Sparkles, ShoppingBag, Bell, Upload } from 'lucide-react'
 import api from '@/api/axios'
 import toast from 'react-hot-toast'
 
@@ -28,7 +28,24 @@ export default function AdminBanners() {
   const [modal, setModal]       = useState(false)
   const [editing, setEditing]   = useState(null)
   const [form, setForm]         = useState(EMPTY)
-  const [saving, setSaving]     = useState(false)
+  const [saving, setSaving]       = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const imgRef       = useRef()
+  const mobileImgRef = useRef()
+
+  const handleImgUpload = async (file, field) => {
+    if (!file) return
+    setUploading(true)
+    const fd = new FormData()
+    fd.append('files', file)
+    fd.append('folder', 'marketpro/banners')
+    try {
+      const res = await api.post('/upload/images', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setForm(f => ({ ...f, [field]: res.data.data[0]?.url || '' }))
+      toast.success('Image uploaded!')
+    } catch { toast.error('Upload failed') }
+    setUploading(false)
+  }
 
   const load = async () => {
     setLoading(true)
@@ -246,14 +263,34 @@ export default function AdminBanners() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">Banner Image URL</label>
-                  <input className={inputCls} placeholder="https://..." value={form.image} onChange={set('image')} />
+                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">Banner Image</label>
+                  <div className="flex gap-2">
+                    <input className={`${inputCls} flex-1`} placeholder="https://... or upload →"
+                      value={form.image} onChange={set('image')} />
+                    <button type="button" onClick={() => imgRef.current?.click()}
+                      className="btn-secondary text-sm py-2.5 px-3 flex-shrink-0 flex items-center gap-1.5">
+                      <Upload className="w-4 h-4" />
+                      {uploading ? '...' : 'Upload'}
+                    </button>
+                    <input ref={imgRef} type="file" accept="image/*" className="hidden"
+                      onChange={e => handleImgUpload(e.target.files[0], 'image')} />
+                  </div>
                   {form.image && <img src={form.image} alt="" className="mt-2 h-24 rounded-xl object-cover border border-gray-200" />}
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">Mobile Image URL (optional)</label>
-                  <input className={inputCls} placeholder="Different image for mobile" value={form.mobile_image} onChange={set('mobile_image')} />
+                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">Mobile Image (optional)</label>
+                  <div className="flex gap-2">
+                    <input className={`${inputCls} flex-1`} placeholder="Different image for mobile"
+                      value={form.mobile_image} onChange={set('mobile_image')} />
+                    <button type="button" onClick={() => mobileImgRef.current?.click()}
+                      className="btn-secondary text-sm py-2.5 px-3 flex-shrink-0 flex items-center gap-1.5">
+                      <Upload className="w-4 h-4" /> Upload
+                    </button>
+                    <input ref={mobileImgRef} type="file" accept="image/*" className="hidden"
+                      onChange={e => handleImgUpload(e.target.files[0], 'mobile_image')} />
+                  </div>
+                  {form.mobile_image && <img src={form.mobile_image} alt="" className="mt-2 h-16 rounded-xl object-cover border border-gray-200" />}
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4">

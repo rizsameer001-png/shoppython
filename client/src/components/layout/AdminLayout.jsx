@@ -20,6 +20,7 @@ const NAV = [
   { label: 'Blog',            to: '/admin/blog',             icon: BookOpen },
   { label: 'Banners & Ads',   to: '/admin/banners',          icon: Megaphone },
   { label: 'Bulk Import',     to: '/admin/bulk',             icon: Upload },
+  { label: 'CMS Pages',      to: '/admin/cms',              icon: FileText },
 ]
 
 export default function AdminLayout() {

@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
-import { Plus, Edit, Trash2, Eye, Grid, List, Search, BookOpen, Calendar, Tag, X, Save } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
+import { Plus, Edit, Trash2, Eye, Grid, List, Search, BookOpen, Calendar, Tag, X, Save, Upload, Video, Image as ImageIcon } from 'lucide-react'
 import { useSelector } from 'react-redux'
 import api from '@/api/axios'
 import toast from 'react-hot-toast'
 
 const EMPTY_FORM = {
   title:'', slug:'', content:'', excerpt:'', cover_image:'',
-  category_id:'', tags:[], status:'draft',
+  category_id:'', tags:[], status:'draft', youtube_url:'', video_url:'',
   is_featured:false, meta_title:'', meta_description:'',
 }
 
@@ -28,7 +28,10 @@ export default function AdminBlog() {
   const [editing, setEditing]     = useState(null)
   const [form, setForm]           = useState(EMPTY_FORM)
   const [saving, setSaving]       = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [tagInput, setTagInput]   = useState('')
+  const coverRef = useRef()
+  const videoRef = useRef()
   const limit = 12
 
   const load = async (p=1) => {
@@ -48,6 +51,34 @@ export default function AdminBlog() {
   useEffect(() => { load(page) }, [page, catFilter, statusFilter])
 
   const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setModal(true) }
+
+  const handleCoverUpload = async file => {
+    if (!file) return
+    setUploading(true)
+    const fd = new FormData()
+    fd.append('files', file)
+    fd.append('folder', 'marketpro/blog')
+    try {
+      const res = await api.post('/upload/images', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setForm(f => ({ ...f, cover_image: res.data.data[0]?.url || '' }))
+      toast.success('Cover image uploaded!')
+    } catch { toast.error('Image upload failed') }
+    setUploading(false)
+  }
+
+  const handleVideoUpload = async file => {
+    if (!file) return
+    setUploading(true)
+    const fd = new FormData()
+    fd.append('files', file)
+    fd.append('folder', 'marketpro/blog/videos')
+    try {
+      const res = await api.post('/upload/images', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setForm(f => ({ ...f, video_url: res.data.data[0]?.url || '' }))
+      toast.success('Video uploaded!')
+    } catch { toast.error('Video upload failed') }
+    setUploading(false)
+  }
   const openEdit = (b) => {
     setEditing(b)
     setForm({ ...EMPTY_FORM, ...b, tags: b.tags || [], category_id: b.category_id || '' })
@@ -308,9 +339,18 @@ export default function AdminBlog() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">Cover Image URL</label>
-                  <input className={inputCls} placeholder="https://..."
-                    value={form.cover_image} onChange={e => setForm(f => ({...f, cover_image: e.target.value}))} />
+                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">Cover Image</label>
+                  <div className="flex gap-2">
+                    <input className={`${inputCls} flex-1`} placeholder="https://... or upload →"
+                      value={form.cover_image} onChange={e => setForm(f => ({...f, cover_image: e.target.value}))} />
+                    <button type="button" onClick={() => coverRef.current?.click()}
+                      className="btn-secondary text-sm py-2.5 px-3 flex-shrink-0 flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4" />
+                      {uploading ? '...' : 'Upload'}
+                    </button>
+                    <input ref={coverRef} type="file" accept="image/*" className="hidden"
+                      onChange={e => handleCoverUpload(e.target.files[0])} />
+                  </div>
                   {form.cover_image && (
                     <img src={form.cover_image} alt="" className="mt-2 h-32 rounded-xl object-cover border border-gray-200" />
                   )}
@@ -320,6 +360,41 @@ export default function AdminBlog() {
                   <label className="text-xs font-semibold text-gray-600 block mb-1.5">Excerpt</label>
                   <textarea rows={2} className={`${inputCls} resize-none`} placeholder="Short summary shown in listing"
                     value={form.excerpt} onChange={e => setForm(f => ({...f, excerpt: e.target.value}))} />
+                </div>
+
+                {/* Video section */}
+                <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                    <Video className="w-4 h-4 text-primary-500" /> Video (optional)
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-gray-600 block mb-1.5">YouTube URL</label>
+                      <input className={inputCls} placeholder="https://youtube.com/watch?v=..."
+                        value={form.youtube_url || ''} onChange={e => setForm(f => ({...f, youtube_url: e.target.value}))} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-600 block mb-1.5">Upload Video File</label>
+                      <div onClick={() => videoRef.current?.click()}
+                        className="border-2 border-dashed rounded-xl p-3 text-center cursor-pointer hover:border-primary-300 hover:bg-primary-50 transition-all">
+                        {uploading
+                          ? <p className="text-xs text-primary-500 animate-pulse">Uploading...</p>
+                          : <><Upload className="w-4 h-4 text-gray-300 mx-auto mb-1" /><p className="text-xs text-gray-400">MP4, WebM, MOV</p></>
+                        }
+                        <input ref={videoRef} type="file" accept="video/*" className="hidden"
+                          onChange={e => handleVideoUpload(e.target.files[0])} />
+                      </div>
+                    </div>
+                  </div>
+                  {form.youtube_url && (
+                    <div className="rounded-xl overflow-hidden aspect-video bg-black">
+                      <iframe src={form.youtube_url.replace('watch?v=','embed/').replace('youtu.be/','www.youtube.com/embed/')}
+                        allow="autoplay" allowFullScreen className="w-full h-full" />
+                    </div>
+                  )}
+                  {form.video_url && !form.youtube_url && (
+                    <video src={form.video_url} controls className="w-full rounded-xl max-h-48" />
+                  )}
                 </div>
 
                 <div>

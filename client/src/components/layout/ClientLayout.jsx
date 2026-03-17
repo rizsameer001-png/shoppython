@@ -10,6 +10,7 @@ import { toggleCart, closeCart } from '@/store/slices/uiSlice'
 import { logout } from '@/store/slices/authSlice'
 import { updateCartItem } from '@/store/slices/cartSlice'
 import CartDrawer from '@/components/cart/CartDrawer'
+import api from '@/api/axios'
 
 const NAV_LINKS = [
   { label: 'Home',     to: '/' },
@@ -27,7 +28,8 @@ export default function ClientLayout() {
   const { item_count } = useSelector((s) => s.cart)
   const { ids: wishIds } = useSelector((s) => s.wishlist)
   const { cartOpen } = useSelector((s) => s.ui)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuOpen, setMenuOpen]   = useState(false)
+  const [cmsPages, setCmsPages]   = useState([])
   const [searchVal, setSearchVal] = useState('')
   const [scrolled, setScrolled] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -37,6 +39,14 @@ export default function ClientLayout() {
     const handler = () => setScrolled(window.scrollY > 20)
     window.addEventListener('scroll', handler)
     return () => window.removeEventListener('scroll', handler)
+  }, [])
+
+  useEffect(() => {
+    // Load CMS pages that have menu_location set
+    api.get('/cms/public').then(r => {
+      const pages = r.data.data || []
+      setCmsPages(pages.filter(p => p.menu_location && p.menu_location !== 'none'))
+    }).catch(() => {})
   }, [])
 
   // Close user menu on outside click
@@ -217,6 +227,7 @@ export default function ClientLayout() {
       {/* ── Footer ── */}
       <footer className="bg-gray-900 text-white mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+          {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
@@ -226,18 +237,43 @@ export default function ClientLayout() {
             </div>
             <p className="text-gray-400 text-sm leading-relaxed">Premium products, delivered fast. Shop with confidence.</p>
           </div>
+
+          {/* Quick links */}
           <div>
             <h4 className="font-semibold mb-4">Quick Links</h4>
             <ul className="space-y-2 text-sm text-gray-400">
-              {['Home','Shop','New Arrivals','Sale'].map(l => <li key={l}><a href="#" className="hover:text-primary-400 transition-colors">{l}</a></li>)}
+              <li><Link to="/" className="hover:text-primary-400 transition-colors">Home</Link></li>
+              <li><Link to="/products" className="hover:text-primary-400 transition-colors">Shop</Link></li>
+              <li><Link to="/products?new_arrival=true" className="hover:text-primary-400 transition-colors">New Arrivals</Link></li>
+              <li><Link to="/products?on_sale=true" className="hover:text-primary-400 transition-colors">Sale</Link></li>
+              <li><Link to="/blog" className="hover:text-primary-400 transition-colors">Blog</Link></li>
             </ul>
           </div>
+
+          {/* Dynamic CMS footer pages */}
           <div>
-            <h4 className="font-semibold mb-4">Customer Care</h4>
+            <h4 className="font-semibold mb-4">Information</h4>
             <ul className="space-y-2 text-sm text-gray-400">
-              {['My Account','Track Order','Returns','FAQs'].map(l => <li key={l}><a href="#" className="hover:text-primary-400 transition-colors">{l}</a></li>)}
+              {cmsPages.filter(p => p.menu_location === 'footer' || p.menu_location === 'both').length > 0
+                ? cmsPages.filter(p => p.menu_location === 'footer' || p.menu_location === 'both').map(p => (
+                    <li key={p.id}>
+                      <Link
+                        to={`/pages/${p.slug}`}
+                        target={p.open_in_new_tab ? '_blank' : undefined}
+                        className="hover:text-primary-400 transition-colors"
+                      >
+                        {p.title}
+                      </Link>
+                    </li>
+                  ))
+                : ['About Us','Privacy Policy','Terms & Conditions','Returns'].map(l => (
+                    <li key={l}><span className="text-gray-600">{l}</span></li>
+                  ))
+              }
             </ul>
           </div>
+
+          {/* Contact */}
           <div>
             <h4 className="font-semibold mb-4">Contact</h4>
             <div className="space-y-2 text-sm text-gray-400">
@@ -245,10 +281,24 @@ export default function ClientLayout() {
               <p>📞 +91 98765 43210</p>
               <p>📍 Mumbai, India</p>
             </div>
+            <div className="mt-4 flex gap-3">
+              <Link to="/pages/about-us" className="text-xs text-gray-500 hover:text-primary-400 transition-colors">About</Link>
+              <Link to="/blog" className="text-xs text-gray-500 hover:text-primary-400 transition-colors">Blog</Link>
+            </div>
           </div>
         </div>
         <div className="border-t border-gray-800 py-4 text-center text-xs text-gray-500">
           © {new Date().getFullYear()} MarketPro. All rights reserved.
+          {cmsPages.filter(p => p.menu_location === 'footer' || p.menu_location === 'both').length > 0 && (
+            <span className="ml-4">
+              {cmsPages.filter(p => p.menu_location === 'footer' || p.menu_location === 'both').slice(0,3).map((p, i) => (
+                <span key={p.id}>
+                  {i > 0 && ' · '}
+                  <Link to={`/pages/${p.slug}`} className="hover:text-primary-400 transition-colors">{p.title}</Link>
+                </span>
+              ))}
+            </span>
+          )}
         </div>
       </footer>
     </div>

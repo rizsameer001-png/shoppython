@@ -119,6 +119,8 @@ class ProductSchema(BaseModel):
     is_on_sale: bool = False
     meta_title: Optional[str] = None
     meta_description: Optional[str] = None
+    # Product attributes — list of {attribute_id, name, type, selected_values:[]}
+    attributes: List[dict] = []
 
     # ── Coerce empty strings → None ──────────────────────────────────────────
     # The React form sends "" for every unfilled optional text field.
