@@ -337,12 +337,12 @@ export default function BlogPostPage() {
         <article className="flex-1 min-w-0">
 
           {/* Hero media — cover image OR youtube OR video */}
-          {post.cover_image && (
+ {/*         {post.cover_image && (
             <div className="rounded-2xl overflow-hidden mb-8 shadow-lg">
               <img
                 src={post.cover_image}
                 alt={post.title}
-                className="w-full max-h-[500px] object-cover"
+                className="w-full max-h-[900px] object-cover"
               />
             </div>
           )}
@@ -356,7 +356,48 @@ export default function BlogPostPage() {
           )}
           {post.video_url && !post.youtube_url && (
             <video src={post.video_url} controls className="w-full rounded-2xl mb-8 shadow-lg max-h-96" />
-          )}
+          )}*/}
+
+          {/* Image Section: Adapts to portrait or landscape without cropping */}
+{post.cover_image && (
+  <div className="rounded-2xl overflow-hidden mb-8 shadow-lg bg-gray-50 flex justify-center">
+    <img
+      src={post.cover_image}
+      alt={post.title}
+      /* h-auto + max-h-[85vh]: Allows the image to scale naturally. 
+         85vh ensures the user can see the image and a bit of text below it.
+         object-contain: Ensures the whole fashion piece is visible.
+      */
+      className="w-full h-auto max-h-[85vh] object-contain"
+    />
+  </div>
+)}
+
+{/* YouTube Section: Standard 16:9 ratio for video players */}
+{post.youtube_url && (
+  <div className="rounded-2xl overflow-hidden aspect-video mb-8 bg-black shadow-lg">
+    <iframe
+      src={post.youtube_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'www.youtube.com/embed/')}
+      allow="autoplay; fullscreen"
+      allowFullScreen
+      className="w-full h-full"
+    />
+  </div>
+)}
+
+{/* Native Video Section: Flexible for TikTok-style vertical or wide video */}
+{post.video_url && !post.youtube_url && (
+  <div className="rounded-2xl overflow-hidden mb-8 shadow-lg bg-black flex justify-center">
+    <video 
+      src={post.video_url} 
+      controls 
+      /* Removing fixed 'max-h-96' allows for tall vertical videos 
+         common in fashion tech/social media style posts.
+      */
+      className="w-full h-auto max-h-[85vh]" 
+    />
+  </div>
+)}
 
           {/* Category pill */}
           {post.category && (
