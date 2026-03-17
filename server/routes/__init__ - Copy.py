@@ -10,12 +10,6 @@ from .misc import (
     user_router,
     admin_router,
 )
-from .new_features import (
-    attribute_router,
-    blog_router,
-    banner_router,
-    bulk_router,
-)
 
 __all__ = [
     "auth_router",
@@ -28,8 +22,4 @@ __all__ = [
     "order_router",
     "user_router",
     "admin_router",
-    "attribute_router",
-    "blog_router",
-    "banner_router",
-    "bulk_router",
 ]

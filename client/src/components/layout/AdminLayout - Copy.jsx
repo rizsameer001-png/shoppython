@@ -3,23 +3,18 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useState } from 'react'
 import {
   LayoutDashboard, Package, Tags, Award, ShoppingBag,
-  Users, Heart, LogOut, Menu, X, ChevronRight, ShoppingCart,
-  BookOpen, Megaphone, Upload
+  Users, Heart, LogOut, Menu, X, ChevronRight, ShoppingCart
 } from 'lucide-react'
 import { logout } from '@/store/slices/authSlice'
 
 const NAV = [
-  { label: 'Dashboard',       to: '/admin',                  icon: LayoutDashboard },
-  { label: 'Products',        to: '/admin/products',         icon: Package },
-  { label: 'Attributes',      to: '/admin/attributes',       icon: Tags },
-  { label: 'Categories',      to: '/admin/categories',       icon: Tags },
-  { label: 'Brands',          to: '/admin/brands',           icon: Award },
-  { label: 'Orders',          to: '/admin/orders',           icon: ShoppingBag },
-  { label: 'Customers',       to: '/admin/customers',        icon: Users },
-  { label: 'Wishlist Stats',  to: '/admin/wishlist-stats',   icon: Heart },
-  { label: 'Blog',            to: '/admin/blog',             icon: BookOpen },
-  { label: 'Banners & Ads',   to: '/admin/banners',          icon: Megaphone },
-  { label: 'Bulk Import',     to: '/admin/bulk',             icon: Upload },
+  { label: 'Dashboard',     to: '/admin',               icon: LayoutDashboard },
+  { label: 'Products',      to: '/admin/products',       icon: Package },
+  { label: 'Categories',    to: '/admin/categories',     icon: Tags },
+  { label: 'Brands',        to: '/admin/brands',         icon: Award },
+  { label: 'Orders',        to: '/admin/orders',         icon: ShoppingBag },
+  { label: 'Customers',     to: '/admin/customers',      icon: Users },
+  { label: 'Wishlist Stats',to: '/admin/wishlist-stats', icon: Heart },
 ]
 
 export default function AdminLayout() {
@@ -30,12 +25,9 @@ export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const isActive = (to) => {
-    // Dashboard needs exact match — '/admin' must not highlight for '/admin/products' etc
-    if (to === '/admin') return location.pathname === '/admin'
-    // All other links: current path starts with the link path
-    return location.pathname.startsWith(to)
-  }
+  const isActive = (to) => to === '/admin'
+    ? location.pathname === '/admin'
+    : location.pathname.startsWith(to)
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden font-body">

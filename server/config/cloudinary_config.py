@@ -1,26 +1,25 @@
 """
 Cloudinary helpers — all upload/delete calls are wrapped in
-asyncio.get_event_loop().run_in_executor() so they never block
+asyncio.get_running_loop().run_in_executor() so they never block
 the FastAPI async event loop (which caused the "ghost 500" on first call).
 
 Root cause of the ghost 500
 ────────────────────────────
-The cloudinary SDK's uploader.upload() / uploader.destroy() are
+The Cloudinary SDK's uploader.upload() / uploader.destroy() are
 *synchronous* HTTP calls (using urllib3). Calling them bare inside an
 `async def` function does NOT make them async — they block the single
-thread that runs the entire asyncio event loop. On the very first call:
-
-  1. FastAPI starts handling the request on the event loop thread.
-  2. cloudinary.uploader.upload() blocks that thread for ~1-3 seconds.
-  3. Motor (MongoDB async driver) has pending callbacks that need the
-     event loop to be free so they can complete their own awaits.
-  4. Those callbacks time out / raise, causing a 500 BEFORE the
-     Cloudinary call even finishes.
-  5. The DB write already succeeded (it was awaited before the block),
-     so on refresh the record is there — the "ghost" effect.
+thread that runs the entire asyncio event loop.
 
 Fix: run every sync Cloudinary call in a ThreadPoolExecutor so the
 event loop thread is never blocked.
+
+Windows / Python 3.10+ note
+─────────────────────────────
+asyncio.get_event_loop() is deprecated since Python 3.10 and raises
+DeprecationWarning. Inside an already-running async context (which is
+always the case inside a FastAPI route) the correct call is
+asyncio.get_running_loop() — it returns the loop that is actually
+running right now, with no deprecation warning.
 """
 import asyncio
 from functools import partial
@@ -49,8 +48,15 @@ async def _run_sync(func, *args, **kwargs):
     """
     Run a synchronous function in a thread-pool executor so it never
     blocks the asyncio event loop.
+
+    Uses asyncio.get_running_loop() instead of the deprecated
+    asyncio.get_event_loop() — safe on Python 3.8 through 3.13.
     """
-    loop = asyncio.get_event_loop()
+    # get_running_loop() is correct here: we are always inside an
+    # async function that was called from an already-running event loop.
+    # get_event_loop() would raise DeprecationWarning on 3.10+ and
+    # RuntimeError on 3.12+ when called from a thread without a running loop.
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, partial(func, *args, **kwargs))
 
 
@@ -68,7 +74,6 @@ async def upload_image(
     if public_id:
         options["public_id"] = public_id
 
-    # ✅ run_in_executor — sync SDK call moved off the event loop thread
     result = await _run_sync(cloudinary.uploader.upload, file_bytes, **options)
     return {
         "url": result["secure_url"],
@@ -85,7 +90,6 @@ async def upload_from_url(image_url: str, folder: str = "marketpro/products") ->
         "folder": folder,
         "transformation": [{"quality": "auto", "fetch_format": "auto"}],
     }
-    # ✅ run_in_executor
     result = await _run_sync(cloudinary.uploader.upload, image_url, **options)
     return {
         "url": result["secure_url"],
@@ -97,7 +101,6 @@ async def upload_from_url(image_url: str, folder: str = "marketpro/products") ->
 
 async def delete_image(public_id: str) -> bool:
     """Delete an asset from Cloudinary — non-blocking."""
-    # ✅ run_in_executor
     result = await _run_sync(cloudinary.uploader.destroy, public_id)
     return result.get("result") == "ok"
 

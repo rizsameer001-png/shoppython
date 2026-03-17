@@ -146,13 +146,12 @@ export default function AdminProductForm() {
     try {
       if (isEdit) {
         await api.put(`/products/${id}`, payload)
-        toast.success('✅ Product updated successfully!')
+        toast.success('Product updated!')
       } else {
         await api.post('/products', payload)
-        toast.success('✅ Product created successfully!')
+        toast.success('Product created!')
+        navigate('/admin/products')
       }
-      // Always redirect to list after save
-      navigate('/admin/products')
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Save failed')
     }

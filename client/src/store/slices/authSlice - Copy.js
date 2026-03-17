@@ -75,7 +75,6 @@ const authSlice = createSlice({
         s.user = payload.user
         s.accessToken = payload.access_token
         s.refreshToken = payload.refresh_token
-        s.initialized = true  // ← FIX: mark initialized
         localStorage.setItem('access_token', payload.access_token)
         localStorage.setItem('refresh_token', payload.refresh_token)
         toast.success('Welcome to MarketPro!')
@@ -91,14 +90,12 @@ const authSlice = createSlice({
         s.user = payload.user
         s.accessToken = payload.access_token
         s.refreshToken = payload.refresh_token
-        s.initialized = true  // ← FIX: mark initialized so ProtectedRoute stops spinning
         localStorage.setItem('access_token', payload.access_token)
         localStorage.setItem('refresh_token', payload.refresh_token)
         toast.success(`Welcome back, ${payload.user.name}!`)
       })
       .addCase(login.rejected, (s, { payload }) => {
         s.loading = false
-        s.initialized = true  // ← FIX: failed login — still initialized, just no user
         toast.error(payload)
       })
       // fetchMe

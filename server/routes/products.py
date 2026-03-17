@@ -22,7 +22,7 @@ def slugify(text: str) -> str:
     return text
 
 
-def _safe_object_id(value) -> "ObjectId | None":
+def _safe_object_id(value):  # returns Optional[ObjectId] — compatible Python 3.8+
     """Return ObjectId if valid 24-hex string, else None. Never raises."""
     try:
         if value and isinstance(value, str) and ObjectId.is_valid(value):

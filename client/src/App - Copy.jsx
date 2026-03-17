@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchMe } from '@/store/slices/authSlice'
@@ -33,34 +33,12 @@ import AdminBrands        from '@/pages/admin/AdminBrands'
 import AdminOrders        from '@/pages/admin/AdminOrders'
 import AdminCustomers     from '@/pages/admin/AdminCustomers'
 import AdminWishlistStats from '@/pages/admin/AdminWishlistStats'
-import AdminAttributes  from '@/pages/admin/AdminAttributes'
-import AdminBlog        from '@/pages/admin/AdminBlog'
-import AdminBanners     from '@/pages/admin/AdminBanners'
-import AdminBulkImport  from '@/pages/admin/AdminBulkImport'
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, initialized } = useSelector((s) => s.auth)
-  const location = useLocation()
-
-  // Show spinner only while auth state is loading — prevents flash redirects
-  if (!initialized) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin h-8 w-8 border-4 border-primary-500 border-t-transparent rounded-full" />
-      </div>
-    )
-  }
-
-  // Not logged in — go to login, remember where they wanted to go
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />
-  }
-
-  // Logged in but not admin — redirect to home, NOT to /login (already logged in)
-  if (adminOnly && user.role !== 'admin' && user.role !== 'superadmin') {
-    return <Navigate to="/" replace />
-  }
-
+  if (!initialized) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin h-8 w-8 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
+  if (!user) return <Navigate to="/login" replace />
+  if (adminOnly && user.role !== 'admin' && user.role !== 'superadmin') return <Navigate to="/" replace />
   return children
 }
 
@@ -77,7 +55,7 @@ export default function App() {
       dispatch(fetchWishlist())
     } else {
       // mark initialized without user
-      dispatch({ type: 'auth/me/rejected' })  // correct: thunk name is 'auth/me'
+      dispatch({ type: 'auth/me/rejected' })
     }
   }, [dispatch, accessToken])
 
@@ -117,11 +95,7 @@ export default function App() {
           <Route path="brands"        element={<AdminBrands />} />
           <Route path="orders"        element={<AdminOrders />} />
           <Route path="customers"     element={<AdminCustomers />} />
-          <Route path="wishlist-stats"  element={<AdminWishlistStats />} />
-          <Route path="attributes"     element={<AdminAttributes />} />
-          <Route path="blog"           element={<AdminBlog />} />
-          <Route path="banners"        element={<AdminBanners />} />
-          <Route path="bulk"           element={<AdminBulkImport />} />
+          <Route path="wishlist-stats" element={<AdminWishlistStats />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
