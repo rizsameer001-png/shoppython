@@ -37,6 +37,10 @@ import AdminAttributes  from '@/pages/admin/AdminAttributes'
 import AdminBlog        from '@/pages/admin/AdminBlog'
 import AdminBanners     from '@/pages/admin/AdminBanners'
 import AdminBulkImport  from '@/pages/admin/AdminBulkImport'
+import AdminCMS         from '@/pages/admin/AdminCMS'
+import BlogPage         from '@/pages/client/BlogPage'
+import BlogPostPage     from '@/pages/client/BlogPostPage'
+import CmsPage          from '@/pages/client/CmsPage'
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, initialized } = useSelector((s) => s.auth)
@@ -105,6 +109,9 @@ export default function App() {
           <Route path="profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="login"    element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
+          <Route path="blog"       element={<BlogPage />} />
+          <Route path="blog/:slug" element={<BlogPostPage />} />
+          <Route path="pages/:slug" element={<CmsPage />} />
         </Route>
 
         {/* ─── Admin ─── */}
@@ -122,6 +129,7 @@ export default function App() {
           <Route path="blog"           element={<AdminBlog />} />
           <Route path="banners"        element={<AdminBanners />} />
           <Route path="bulk"           element={<AdminBulkImport />} />
+          <Route path="cms"            element={<AdminCMS />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

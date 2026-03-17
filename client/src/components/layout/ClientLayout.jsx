@@ -16,6 +16,7 @@ const NAV_LINKS = [
   { label: 'Shop',     to: '/products' },
   { label: 'Deals',    to: '/products?on_sale=true' },
   { label: 'New In',   to: '/products?new_arrival=true' },
+  { label: 'Blog',     to: '/blog' },
 ]
 
 export default function ClientLayout() {

@@ -1,9 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { fetchProducts } from '@/store/slices/productSlice'
-import { ArrowRight, Shield, Truck, RefreshCw, Headphones, Star, TrendingUp, Zap } from 'lucide-react'
+import { ArrowRight, Shield, Truck, RefreshCw, Headphones, Star, TrendingUp, Zap, Download, FileText, BookOpen } from 'lucide-react'
 import ProductCard, { ProductCardSkeleton } from '@/components/product/ProductCard'
+import api from '@/api/axios'
 
 const HERO_FEATURES = [
   { icon: Truck,       label: 'Free Shipping',   sub: 'On orders above ₹500' },
@@ -188,9 +189,34 @@ function BannerSection() {
 export default function HomePage() {
   const dispatch = useDispatch()
   const { list: products, categories, loading } = useSelector((s) => s.products)
+  const [heroBanners, setHeroBanners]     = useState([])
+  const [sideBanners, setSideBanners]     = useState([])
+  const [recentBlogs, setRecentBlogs]     = useState([])
+  const [cmsCards, setCmsCards]           = useState([])
+  const [activePopup, setActivePopup]     = useState(null)
 
   useEffect(() => {
     dispatch(fetchProducts({ featured: true, limit: 8 }))
+
+    // Load hero banners
+    api.get('/banners?position=home&type=hero').then(r => setHeroBanners(r.data.data || [])).catch(()=>{})
+    // Load sidebar banners
+    api.get('/banners?position=sidebar').then(r => setSideBanners(r.data.data || [])).catch(()=>{})
+    // Load recent blogs
+    api.get('/blogs?status=published&limit=3').then(r => setRecentBlogs(r.data.data || [])).catch(()=>{})
+    // Load CMS cards for home
+    api.get('/cms/public?show_on_home=true').then(r => setCmsCards(r.data.data || [])).catch(()=>{})
+    // Load popup
+    api.get('/banners?type=popup').then(r => {
+      const popup = r.data.data?.[0]
+      if (!popup) return
+      const key = `popup_seen_${popup.id}`
+      if (popup.popup_once_per_session && sessionStorage.getItem(key)) return
+      setTimeout(() => {
+        setActivePopup(popup)
+        if (popup.popup_once_per_session) sessionStorage.setItem(key, '1')
+      }, popup.popup_delay_ms || 3000)
+    }).catch(()=>{})
   }, [dispatch])
 
   return (
@@ -233,6 +259,107 @@ export default function HomePage() {
           }
         </div>
       </section>
+
+      {/* Side banners / CMS cards / Blog section */}
+      {(sideBanners.length > 0 || cmsCards.length > 0 || recentBlogs.length > 0) && (
+        <section className="py-6 pb-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* Recent blog posts */}
+            {recentBlogs.length > 0 && (
+              <div className="lg:col-span-2">
+                <div className="flex items-center justify-between mb-5">
+                  <h2 className="font-display text-xl font-bold flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-primary-500" /> Latest Articles
+                  </h2>
+                  <Link to="/blog" className="text-sm text-primary-600 font-semibold hover:text-primary-700">View all →</Link>
+                </div>
+                <div className="space-y-4">
+                  {recentBlogs.map(b => (
+                    <Link key={b.id} to={`/blog/${b.slug||b.id}`}
+                      className="card p-4 flex gap-4 hover:shadow-card-hover transition-shadow group">
+                      {b.cover_image && <img src={b.cover_image} alt="" className="w-20 h-20 rounded-xl object-cover flex-shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        {b.category && <p className="text-xs text-primary-500 font-semibold mb-0.5">{b.category.name}</p>}
+                        <h3 className="font-semibold text-gray-800 line-clamp-2 text-sm group-hover:text-primary-600">{b.title}</h3>
+                        {b.excerpt && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{b.excerpt}</p>}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Side banners + CMS download cards */}
+            <div className="space-y-4">
+              {sideBanners.map(banner => (
+                <div key={banner.id} className="rounded-2xl overflow-hidden relative"
+                  style={{ backgroundColor: banner.bg_color || '#f3f4f6' }}>
+                  {banner.image && <img src={banner.image} alt={banner.title} className="w-full h-48 object-cover" />}
+                  <div className="p-4">
+                    {banner.badge_text && <span className="badge-primary text-xs mb-2 inline-block">{banner.badge_text}</span>}
+                    <h3 className="font-bold text-gray-900" style={{ color: banner.text_color || undefined }}>{banner.title}</h3>
+                    {banner.subtitle && <p className="text-sm text-gray-600 mt-0.5">{banner.subtitle}</p>}
+                    {banner.link_url && (
+                      <Link to={banner.link_url} className="mt-3 btn-primary text-sm py-2 inline-flex">
+                        {banner.link_text || 'Shop Now'} <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {cmsCards.filter(p => p.allow_download && p.downloadable_files?.length > 0).map(page => (
+                <div key={page.id} className="card p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-4 h-4 text-primary-500" />
+                    <h3 className="font-semibold text-gray-800 text-sm">{page.title}</h3>
+                  </div>
+                  {page.excerpt && <p className="text-xs text-gray-500 mb-3">{page.excerpt}</p>}
+                  {page.downloadable_files.slice(0,2).map((file, i) => (
+                    <a key={i} href={file.url} target="_blank" rel="noopener noreferrer" download={file.name}
+                      className="flex items-center gap-2 p-2 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors mb-1.5">
+                      <Download className="w-3.5 h-3.5 text-primary-500 flex-shrink-0" />
+                      <span className="text-xs font-medium text-primary-700 truncate">{file.name}</span>
+                    </a>
+                  ))}
+                  <Link to={`/pages/${page.slug}`} className="text-xs text-primary-600 hover:underline font-medium mt-1 block">
+                    View page →
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Popup banner */}
+      {activePopup && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={() => setActivePopup(null)}>
+            <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl animate-scale-in"
+              onClick={e => e.stopPropagation()}>
+              {activePopup.image && <img src={activePopup.image} alt="" className="w-full h-48 object-cover" />}
+              <div className="p-6">
+                {activePopup.badge_text && (
+                  <span className="badge-primary text-xs mb-2 inline-block">{activePopup.badge_text}</span>
+                )}
+                <h3 className="font-display font-bold text-xl text-gray-900">{activePopup.title}</h3>
+                {activePopup.subtitle && <p className="text-gray-600 mt-1 text-sm">{activePopup.subtitle}</p>}
+                <div className="flex gap-3 mt-5">
+                  {activePopup.link_url && (
+                    <Link to={activePopup.link_url} onClick={() => setActivePopup(null)}
+                      className="btn-primary flex-1 text-sm py-2.5 text-center">
+                      {activePopup.link_text || 'Shop Now'}
+                    </Link>
+                  )}
+                  <button onClick={() => setActivePopup(null)}
+                    className="btn-secondary flex-1 text-sm py-2.5">Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Newsletter */}
       <section className="bg-primary-500 py-16">

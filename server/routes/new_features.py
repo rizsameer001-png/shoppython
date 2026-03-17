@@ -550,3 +550,143 @@ async def import_categories(file: UploadFile = File(...), admin=Depends(get_admi
             errors.append(f"Row {i}: {str(e)}")
 
     return {"success": True, "message": f"{created} categories imported", "created": created, "errors": errors}
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# CMS PAGES
+# ═════════════════════════════════════════════════════════════════════════════
+cms_router = APIRouter()
+
+class CmsPageSchema(BaseModel):
+    title: str = Field(..., min_length=2)
+    slug: Optional[str] = None
+    content: str = ""
+    excerpt: Optional[str] = None
+    cover_image: Optional[str] = None
+    page_type: str = "page"        # page | landing | policy | faq
+    status: str = "draft"          # draft | published
+    is_featured: bool = False
+    show_on_home: bool = False      # display download/link card on homepage
+    # File download support
+    downloadable_files: List[dict] = []  # [{name, url, public_id, size, type}]
+    allow_download: bool = False
+    # Layout / display
+    meta_title: Optional[str] = None
+    meta_description: Optional[str] = None
+    sort_order: int = 0
+
+@cms_router.get("")
+async def list_cms_pages(
+    status: Optional[str] = None,
+    show_on_home: Optional[bool] = None,
+):
+    db = get_db()
+    q: dict = {}
+    if status:
+        q["status"] = status
+    if show_on_home is not None:
+        q["show_on_home"] = show_on_home
+    docs = await db.cms_pages.find(q).sort("sort_order", 1).to_list(200)
+    for d in docs:
+        sid(d)
+    return {"success": True, "data": docs}
+
+@cms_router.get("/public")
+async def list_public_cms_pages(show_on_home: Optional[bool] = None):
+    db = get_db()
+    q: dict = {"status": "published"}
+    if show_on_home is not None:
+        q["show_on_home"] = show_on_home
+    docs = await db.cms_pages.find(q).sort("sort_order", 1).to_list(200)
+    for d in docs:
+        sid(d)
+    return {"success": True, "data": docs}
+
+@cms_router.post("")
+async def create_cms_page(body: CmsPageSchema, admin=Depends(get_admin_user)):
+    db = get_db()
+    slug = body.slug or _slugify(body.title)
+    if await db.cms_pages.find_one({"slug": slug}):
+        slug = f"{slug}-{ObjectId()}"
+    doc = body.dict()
+    doc["slug"] = slug
+    doc["created_at"] = datetime.utcnow()
+    doc["updated_at"] = datetime.utcnow()
+    r = await db.cms_pages.insert_one(doc)
+    created = await db.cms_pages.find_one({"_id": r.inserted_id})
+    return {"success": True, "data": sid(created)}
+
+@cms_router.get("/{page_id}")
+async def get_cms_page(page_id: str):
+    db = get_db()
+    oid = safe_oid(page_id)
+    doc = await db.cms_pages.find_one({"_id": oid} if oid else {"slug": page_id})
+    if not doc:
+        raise HTTPException(404, "Page not found")
+    return {"success": True, "data": sid(doc)}
+
+@cms_router.put("/{page_id}")
+async def update_cms_page(page_id: str, body: CmsPageSchema, admin=Depends(get_admin_user)):
+    db = get_db()
+    oid = safe_oid(page_id)
+    if not oid:
+        raise HTTPException(422, "Invalid id")
+    doc = body.dict()
+    doc["updated_at"] = datetime.utcnow()
+    r = await db.cms_pages.find_one_and_update(
+        {"_id": oid}, {"$set": doc}, return_document=True
+    )
+    if not r:
+        raise HTTPException(404, "Not found")
+    return {"success": True, "data": sid(r)}
+
+@cms_router.delete("/{page_id}")
+async def delete_cms_page(page_id: str, admin=Depends(get_admin_user)):
+    db = get_db()
+    oid = safe_oid(page_id)
+    if not oid:
+        raise HTTPException(422, "Invalid id")
+    await db.cms_pages.delete_one({"_id": oid})
+    return {"success": True, "message": "Page deleted"}
+
+# Upload file for CMS page
+@cms_router.post("/{page_id}/upload-file")
+async def upload_cms_file(
+    page_id: str,
+    file: UploadFile = File(...),
+    admin=Depends(get_admin_user),
+):
+    db = get_db()
+    oid = safe_oid(page_id)
+    if not oid:
+        raise HTTPException(422, "Invalid id")
+
+    from config.cloudinary_config import upload_image as _upload
+    import cloudinary.uploader
+    from functools import partial
+    import asyncio
+
+    content = await file.read()
+    loop = asyncio.get_running_loop()
+
+    # Upload any file type to Cloudinary raw
+    result = await loop.run_in_executor(None, partial(
+        cloudinary.uploader.upload,
+        content,
+        resource_type="auto",
+        folder="marketpro/cms",
+    ))
+
+    file_entry = {
+        "name": file.filename,
+        "url": result["secure_url"],
+        "public_id": result["public_id"],
+        "size": result.get("bytes", 0),
+        "type": file.content_type or "application/octet-stream",
+    }
+
+    await db.cms_pages.update_one(
+        {"_id": oid},
+        {"$push": {"downloadable_files": file_entry}}
+    )
+    return {"success": True, "data": file_entry}

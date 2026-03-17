@@ -4,7 +4,7 @@ import { useState } from 'react'
 import {
   LayoutDashboard, Package, Tags, Award, ShoppingBag,
   Users, Heart, LogOut, Menu, X, ChevronRight, ShoppingCart,
-  BookOpen, Megaphone, Upload
+  BookOpen, Megaphone, Upload, FileText
 } from 'lucide-react'
 import { logout } from '@/store/slices/authSlice'
 
