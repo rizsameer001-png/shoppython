@@ -157,15 +157,16 @@ async def serialize_cart(cart: dict, db):
         product = await db.products.find_one({"_id": ObjectId(item["product_id"])})
         if product:
             items.append({
-                "product_id": item["product_id"],
-                "quantity": item["quantity"],
-                "variant": item.get("variant"),
+                "product_id":          item["product_id"],
+                "quantity":            item["quantity"],
+                "variant":             item.get("variant"),
+                "selected_attributes": item.get("selected_attributes", []),
                 "product": {
-                    "id": str(product["_id"]),
-                    "name": product["name"],
-                    "price": product["price"],
+                    "id":     str(product["_id"]),
+                    "name":   product["name"],
+                    "price":  product["price"],
                     "images": product.get("images", [])[:1],
-                    "stock": product.get("stock", 0),
+                    "stock":  product.get("stock", 0),
                 }
             })
     total = sum(i["quantity"] * i["product"]["price"] for i in items)
@@ -194,7 +195,12 @@ async def add_to_cart(body: CartItemSchema, user=Depends(get_current_user)):
             found = True
             break
     if not found:
-        items.append({"product_id": body.product_id, "quantity": body.quantity, "variant": body.variant})
+        items.append({
+            "product_id":          body.product_id,
+            "quantity":            body.quantity,
+            "variant":             body.variant,
+            "selected_attributes": getattr(body, "selected_attributes", []),
+        })
 
     await db.carts.update_one({"user_id": uid}, {"$set": {"items": items}}, upsert=True)
     cart["items"] = items
@@ -330,12 +336,13 @@ async def place_order(body: PlaceOrderSchema, user=Depends(get_current_user)):
         line_total = product["price"] * ci["quantity"]
         subtotal += line_total
         items.append({
-            "product_id": ci["product_id"],
-            "name": product["name"],
-            "price": product["price"],
-            "quantity": ci["quantity"],
-            "image": product.get("images", [None])[0],
-            "variant": ci.get("variant"),
+            "product_id":          ci["product_id"],
+            "name":                product["name"],
+            "price":               product["price"],
+            "quantity":            ci["quantity"],
+            "image":               product.get("images", [None])[0],
+            "variant":             ci.get("variant"),
+            "selected_attributes": ci.get("selected_attributes", []),
         })
 
     shipping = 0 if subtotal > 500 else 50

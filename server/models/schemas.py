@@ -146,6 +146,8 @@ class CartItemSchema(BaseModel):
     product_id: str
     quantity: int = Field(..., gt=0)
     variant: Optional[str] = None
+    # selected_attributes: [{attribute_id, name, value}]
+    selected_attributes: List[dict] = []
 
 
 class UpdateCartItemSchema(BaseModel):

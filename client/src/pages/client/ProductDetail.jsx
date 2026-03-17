@@ -30,81 +30,54 @@ function ImageGallery({ images = [], productName }) {
 
   const handleMouseMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * 100
-    const y = ((e.clientY - rect.top)  / rect.height) * 100
-    setZoomPos({ x, y })
+    setZoomPos({
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+    })
   }
 
-  const fallback = ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=800&fit=crop']
-  const imgs = images.length > 0 ? images : fallback
+  const imgs = images.length > 0 ? images : ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=800&fit=crop']
 
   return (
     <div className="flex gap-4">
-      {/* Thumbnails */}
       <div className="hidden sm:flex flex-col gap-2.5 w-16 flex-shrink-0">
         {imgs.map((src, i) => (
-          <button
-            key={i}
-            onClick={() => setActive(i)}
+          <button key={i} onClick={() => setActive(i)}
             className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all duration-150 flex-shrink-0
-              ${active === i ? 'border-primary-500 shadow-primary' : 'border-gray-200 hover:border-gray-300'}`}
-          >
+              ${active === i ? 'border-primary-500 shadow-primary' : 'border-gray-200 hover:border-gray-300'}`}>
             <img src={src} alt="" className="w-full h-full object-cover" />
           </button>
         ))}
       </div>
-
-      {/* Main image */}
-      <div className="flex-1">
-        <div
-          className="relative rounded-2xl overflow-hidden bg-gray-50 aspect-square cursor-zoom-in group"
-          onMouseEnter={() => setZoomed(true)}
-          onMouseLeave={() => setZoomed(false)}
+      <div className="flex-1 relative">
+        <div className={`aspect-square rounded-2xl overflow-hidden bg-gray-100 relative ${zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+          onClick={() => setZoomed(!zoomed)}
           onMouseMove={handleMouseMove}
-        >
-          <img
-            src={imgs[active]}
-            alt={productName}
-            className={`w-full h-full object-cover transition-transform duration-200 ${zoomed ? 'scale-150' : 'scale-100'}`}
-            style={zoomed ? { transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` } : {}}
-          />
-          {!zoomed && (
-            <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 flex items-center gap-1.5 text-xs font-medium text-gray-600 shadow-sm">
-              <ZoomIn className="w-3.5 h-3.5" /> Hover to zoom
-            </div>
-          )}
+          onMouseLeave={() => setZoomed(false)}>
+          <img src={imgs[active]} alt={productName}
+            className="w-full h-full object-cover transition-transform duration-300"
+            style={zoomed ? { transform: 'scale(2)', transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` } : {}} />
+          {!zoomed && <div className="absolute bottom-3 right-3 bg-black/40 text-white rounded-lg p-1.5"><ZoomIn className="w-4 h-4" /></div>}
         </div>
-
-        {/* Mobile thumbnails */}
-        <div className="sm:hidden flex gap-2 mt-3 overflow-x-auto pb-1">
-          {imgs.map((src, i) => (
-            <button key={i} onClick={() => setActive(i)}
-              className={`w-14 h-14 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all
-                ${active === i ? 'border-primary-500' : 'border-gray-200'}`}>
-              <img src={src} alt="" className="w-full h-full object-cover" />
-            </button>
-          ))}
-        </div>
+        {imgs.length > 1 && (
+          <div className="flex justify-center gap-1.5 mt-3 sm:hidden">
+            {imgs.map((_, i) => (
+              <button key={i} onClick={() => setActive(i)}
+                className={`w-2 h-2 rounded-full transition-all ${i === active ? 'bg-primary-500 w-4' : 'bg-gray-300'}`} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
 function YouTubeEmbed({ url }) {
-  if (!url) return null
-  // Convert watch URL to embed if needed
-  const embedUrl = url.includes('embed') ? url :
-    url.replace('watch?v=', 'embed/').replace('youtu.be/', 'www.youtube.com/embed/')
-
+  const id = url?.match(/(?:v=|youtu\.be\/)([^&\s]+)/)?.[1]
+  if (!id) return null
   return (
-    <div className="rounded-2xl overflow-hidden aspect-video bg-black shadow-lg">
-      <iframe
-        src={embedUrl}
-        title="Product Video"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        className="w-full h-full"
-      />
+    <div className="aspect-video rounded-2xl overflow-hidden bg-black">
+      <iframe src={`https://www.youtube.com/embed/${id}`} allowFullScreen className="w-full h-full" />
     </div>
   )
 }
@@ -114,9 +87,12 @@ export default function ProductDetail() {
   const dispatch = useDispatch()
   const { currentProduct: product, productLoading, list: related } = useSelector((s) => s.products)
   const { ids: wishIds } = useSelector((s) => s.wishlist)
-  const [qty, setQty] = useState(1)
+
+  const [qty, setQty]                       = useState(1)
   const [selectedVariant, setSelectedVariant] = useState(null)
-  const [activeTab, setActiveTab] = useState('description')
+  const [activeTab, setActiveTab]           = useState('description')
+  // selectedAttributes: { [attribute_id]: value_string }
+  const [selectedAttrs, setSelectedAttrs]   = useState({})
 
   const isWished = wishIds.includes(product?.id)
 
@@ -128,63 +104,85 @@ export default function ProductDetail() {
 
   useEffect(() => { window.scrollTo(0, 0) }, [id])
 
-  if (productLoading) {
+  // Reset selections when product changes
+  useEffect(() => {
+    setSelectedAttrs({})
+    setSelectedVariant(null)
+  }, [id])
+
+  const toggleAttrValue = (attrId, value) => {
+    setSelectedAttrs(prev => ({
+      ...prev,
+      [attrId]: prev[attrId] === value ? null : value,
+    }))
+  }
+
+  // Build a readable attributes string for cart e.g. "Size: M, Color: Red"
+  const attrSummary = product?.attributes
+    ?.filter(a => a.selected_values?.length > 0 && selectedAttrs[a.attribute_id])
+    .map(a => `${a.name}: ${selectedAttrs[a.attribute_id]}`)
+    .join(', ') || selectedVariant || null
+
+  const handleAddToCart = () => {
+    dispatch(addToCart({
+      product_id: product.id,
+      quantity: qty,
+      variant: attrSummary,
+      selected_attributes: Object.entries(selectedAttrs)
+        .filter(([, v]) => v)
+        .map(([attribute_id, value]) => {
+          const attr = product.attributes?.find(a => a.attribute_id === attribute_id)
+          return { attribute_id, name: attr?.name || '', value }
+        }),
+    }))
+  }
+
+  const discount = product?.compare_price > product?.price
+    ? Math.round(((product.compare_price - product.price) / product.compare_price) * 100)
+    : 0
+
+  if (productLoading || !product) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="grid lg:grid-cols-2 gap-10 animate-pulse">
-          <div className="aspect-square skeleton rounded-2xl" />
+        <div className="grid lg:grid-cols-2 gap-12">
+          <div className="skeleton aspect-square rounded-2xl" />
           <div className="space-y-4">
-            <div className="skeleton h-6 rounded w-1/3" />
-            <div className="skeleton h-10 rounded w-2/3" />
-            <div className="skeleton h-5 rounded w-1/4" />
-            <div className="skeleton h-16 rounded" />
-            <div className="skeleton h-12 rounded" />
+            {[1,2,3,4].map(i => <div key={i} className={`skeleton rounded-xl h-${i===1?10:6}`} />)}
           </div>
         </div>
       </div>
     )
   }
 
-  if (!product) return (
-    <div className="text-center py-20">
-      <p className="text-gray-500">Product not found.</p>
-      <Link to="/products" className="btn-primary mt-4 inline-flex">Back to Products</Link>
-    </div>
-  )
-
-  const discount = product.compare_price > product.price
-    ? Math.round(((product.compare_price - product.price) / product.compare_price) * 100)
-    : 0
+  const attrs = product.attributes?.filter(a => a.selected_values?.length > 0) || []
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-gray-400 mb-6">
+      <nav className="flex items-center gap-1.5 text-xs text-gray-400 mb-8">
         <Link to="/" className="hover:text-primary-500 transition-colors">Home</Link>
-        <ChevronRight className="w-4 h-4" />
+        <ChevronRight className="w-3 h-3" />
         <Link to="/products" className="hover:text-primary-500 transition-colors">Products</Link>
-        <ChevronRight className="w-4 h-4" />
+        {product.category && <>
+          <ChevronRight className="w-3 h-3" />
+          <Link to={`/products?category=${product.category_id}`} className="hover:text-primary-500 transition-colors">{product.category.name}</Link>
+        </>}
+        <ChevronRight className="w-3 h-3" />
         <span className="text-gray-700 font-medium truncate max-w-xs">{product.name}</span>
       </nav>
 
-      <div className="grid lg:grid-cols-2 gap-10 mb-16">
+      <div className="grid lg:grid-cols-2 gap-12 mb-16">
         {/* Gallery */}
-        <div>
+        <div className="space-y-4">
           <ImageGallery images={product.images} productName={product.name} />
-          {/* Video section */}
-          {product.youtube_url && (
-            <div className="mt-6">
-              <div className="flex items-center gap-2 mb-3">
-                <Play className="w-4 h-4 text-primary-500" />
-                <h3 className="font-semibold text-gray-800">Product Video</h3>
-              </div>
-              <YouTubeEmbed url={product.youtube_url} />
-            </div>
+          {product.youtube_url && <YouTubeEmbed url={product.youtube_url} />}
+          {product.video_url && !product.youtube_url && (
+            <video src={product.video_url} controls className="w-full rounded-2xl" />
           )}
         </div>
 
-        {/* Info */}
-        <div className="flex flex-col gap-5">
+        {/* Buy box */}
+        <div className="space-y-5">
           {/* Badges */}
           <div className="flex flex-wrap gap-2">
             {product.is_new_arrival && <span className="badge bg-emerald-500 text-white">NEW</span>}
@@ -193,74 +191,93 @@ export default function ProductDetail() {
             {product.stock === 0 && <span className="badge bg-gray-500 text-white">OUT OF STOCK</span>}
           </div>
 
-          {/* Brand */}
-          {product.brand && (
-            <p className="text-primary-500 font-semibold text-sm uppercase tracking-widest">{product.brand.name}</p>
-          )}
+          {product.brand && <p className="text-primary-500 font-semibold text-sm uppercase tracking-widest">{product.brand.name}</p>}
 
-          {/* Name */}
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
-            {product.name}
-          </h1>
+          <h1 className="font-display text-3xl lg:text-4xl font-bold text-gray-900 leading-tight">{product.name}</h1>
 
-          {/* Rating */}
           <StarRow rating={product.avg_rating} count={product.review_count} />
 
           {/* Price */}
-          <div className="flex items-end gap-3">
-            <span className="font-display text-4xl font-bold text-gray-900">
-              ₹{product.price?.toLocaleString()}
-            </span>
+          <div className="flex items-baseline gap-3">
+            <span className="font-display text-4xl font-bold text-primary-600">₹{product.price?.toLocaleString()}</span>
             {product.compare_price > product.price && (
               <>
-                <span className="text-xl text-gray-400 line-through font-medium mb-0.5">
-                  ₹{product.compare_price?.toLocaleString()}
-                </span>
-                <span className="badge bg-red-100 text-red-600 font-bold text-sm mb-1">
-                  Save {discount}%
-                </span>
+                <span className="text-xl text-gray-400 line-through font-semibold">₹{product.compare_price?.toLocaleString()}</span>
+                <span className="badge bg-red-100 text-red-600 font-bold">{discount}% OFF</span>
               </>
             )}
           </div>
 
-          {/* Short description */}
           {product.short_description && (
-            <p className="text-gray-600 text-sm leading-relaxed">{product.short_description}</p>
+            <p className="text-gray-600 text-sm leading-relaxed border-l-4 border-primary-200 pl-3">{product.short_description}</p>
           )}
 
-          {/* Inline attribute swatches */}
-          {product.attributes?.filter(a => a.selected_values?.length > 0).map((attr, i) => (
-            <div key={i} className="space-y-2">
-              <p className="text-sm font-semibold text-gray-700">{attr.name}</p>
+          {/* ── SELECTABLE ATTRIBUTES ── shown before quantity ── */}
+          {attrs.map(attr => (
+            <div key={attr.attribute_id} className="space-y-2">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-gray-800">{attr.name}</p>
+                {selectedAttrs[attr.attribute_id] && (
+                  <span className="text-xs text-primary-600 font-medium bg-primary-50 px-2 py-0.5 rounded-full">
+                    {selectedAttrs[attr.attribute_id]}
+                  </span>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2">
-                {attr.selected_values.map(v => (
-                  attr.type === 'color' ? (
-                    <span key={v} title={v}
-                      className="w-7 h-7 rounded-full border-2 border-white shadow-sm cursor-pointer hover:scale-110 transition-transform"
-                      style={{ backgroundColor: v.startsWith('#') ? v : undefined }}
+                {attr.selected_values.map(v => {
+                  const isSelected = selectedAttrs[attr.attribute_id] === v
+                  return attr.type === 'color' ? (
+                    /* Color swatch — circle */
+                    <button key={v} type="button"
+                      onClick={() => toggleAttrValue(attr.attribute_id, v)}
+                      title={v}
+                      className={`w-8 h-8 rounded-full border-2 transition-all duration-150 hover:scale-110 flex-shrink-0
+                        ${isSelected ? 'border-primary-500 ring-2 ring-primary-300 ring-offset-1' : 'border-gray-300 hover:border-gray-400'}`}
+                      style={{ backgroundColor: v.startsWith('#') ? v : attr.values?.find(av => av.value === v)?.color_hex || '#888' }}
                     />
                   ) : (
-                    <span key={v} className="px-3 py-1 bg-gray-100 hover:bg-primary-50 hover:text-primary-700 border border-gray-200 hover:border-primary-300 text-gray-700 rounded-lg text-xs font-medium cursor-pointer transition-colors">{v}</span>
+                    /* Size / text chip */
+                    <button key={v} type="button"
+                      onClick={() => toggleAttrValue(attr.attribute_id, v)}
+                      className={`px-4 py-2 rounded-xl border-2 text-sm font-semibold transition-all duration-150
+                        ${isSelected
+                          ? 'border-primary-500 bg-primary-500 text-white shadow-primary'
+                          : 'border-gray-200 text-gray-700 hover:border-primary-400 hover:text-primary-600 bg-white'}`}>
+                      {v}
+                    </button>
                   )
-                ))}
+                })}
               </div>
+              {/* Size chart */}
+              {attr.size_chart && (
+                <details className="mt-1">
+                  <summary className="text-xs text-primary-500 cursor-pointer font-semibold hover:text-primary-700">📏 View size chart</summary>
+                  <div className="overflow-x-auto mt-2 rounded-xl border border-gray-200">
+                    <table className="text-xs border-collapse w-full">
+                      <thead><tr className="bg-gray-50">
+                        {attr.size_chart.cols.map((c, ci) => <th key={ci} className="border border-gray-200 px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">{c}</th>)}
+                      </tr></thead>
+                      <tbody>{attr.size_chart.data.map((row, ri) => (
+                        <tr key={ri}>{row.map((cell, ci) => (
+                          <td key={ci} className={`border border-gray-200 px-3 py-2 text-gray-600 ${ci===0?'font-semibold bg-gray-50':''}`}>{cell}</td>
+                        ))}</tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                </details>
+              )}
             </div>
           ))}
 
-          {/* Variants */}
+          {/* Variants (legacy) */}
           {product.variants?.length > 0 && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-2">Select Variant</p>
+              <p className="text-sm font-semibold text-gray-800 mb-2">Select Variant</p>
               <div className="flex flex-wrap gap-2">
-                {product.variants.map((v) => (
-                  <button
-                    key={v.name}
-                    onClick={() => setSelectedVariant(v.name)}
-                    className={`px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all
-                      ${selectedVariant === v.name
-                        ? 'border-primary-500 bg-primary-50 text-primary-700'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
-                  >
+                {product.variants.map(v => (
+                  <button key={v.name} onClick={() => setSelectedVariant(v.name)}
+                    className={`px-4 py-2 rounded-xl border-2 text-sm font-semibold transition-all
+                      ${selectedVariant === v.name ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
                     {v.name}
                   </button>
                 ))}
@@ -269,54 +286,41 @@ export default function ProductDetail() {
           )}
 
           {/* Qty + Add to Cart */}
-          <div className="flex gap-3 items-center">
-            <div className="flex items-center gap-0 bg-gray-100 rounded-xl overflow-hidden">
-              <button
-                onClick={() => setQty(q => Math.max(1, q - 1))}
-                className="px-4 py-3 hover:bg-gray-200 transition-colors"
-              >
+          <div className="flex gap-3 items-center pt-2">
+            <div className="flex items-center bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
+              <button onClick={() => setQty(q => Math.max(1, q - 1))} className="px-4 py-3 hover:bg-gray-200 transition-colors">
                 <Minus className="w-4 h-4" />
               </button>
               <span className="w-10 text-center font-bold text-gray-900">{qty}</span>
-              <button
-                onClick={() => setQty(q => Math.min(product.stock || 99, q + 1))}
-                className="px-4 py-3 hover:bg-gray-200 transition-colors"
-              >
+              <button onClick={() => setQty(q => Math.min(product.stock || 99, q + 1))} className="px-4 py-3 hover:bg-gray-200 transition-colors">
                 <Plus className="w-4 h-4" />
               </button>
             </div>
 
-            <button
-              onClick={() => dispatch(addToCart({ product_id: product.id, quantity: qty, variant: selectedVariant }))}
-              disabled={product.stock === 0}
-              className="btn-primary flex-1 py-3"
-            >
+            <button onClick={handleAddToCart} disabled={product.stock === 0} className="btn-primary flex-1 py-3">
               <ShoppingCart className="w-5 h-5" />
               {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
             </button>
 
-            <button
-              onClick={() => dispatch(toggleWishlist(product.id))}
-              className={`p-3 rounded-xl border-2 transition-all duration-200
-                ${isWished ? 'border-red-400 bg-red-50 text-red-500' : 'border-gray-200 text-gray-400 hover:border-red-300 hover:text-red-500'}`}
-            >
+            <button onClick={() => dispatch(toggleWishlist(product.id))}
+              className={`p-3 rounded-xl border-2 transition-all duration-200 flex-shrink-0
+                ${isWished ? 'border-red-300 bg-red-50 text-red-500' : 'border-gray-200 text-gray-400 hover:border-red-300 hover:text-red-400'}`}>
               <Heart className={`w-5 h-5 ${isWished ? 'fill-current' : ''}`} />
             </button>
           </div>
 
-          {/* Stock info */}
           {product.stock > 0 && product.stock <= 10 && (
             <p className="text-orange-500 text-sm font-semibold">⚡ Only {product.stock} left in stock!</p>
           )}
 
-          {/* Guarantees */}
+          {/* Trust badges */}
           <div className="grid grid-cols-3 gap-3 pt-2 border-t border-gray-100">
             {[
-              { icon: Truck,      label: 'Free Delivery', sub: 'Above ₹500' },
-              { icon: RefreshCw,  label: '30-Day Return', sub: 'Hassle-free' },
-              { icon: Shield,     label: 'Secure Pay',    sub: '100% safe' },
-            ].map(({ icon: Icon, label, sub }) => (
-              <div key={label} className="flex flex-col items-center text-center gap-1 p-3 rounded-xl bg-gray-50">
+              [Truck,     'Free Shipping', 'Orders over ₹500'],
+              [RefreshCw, 'Easy Returns',  '30-day policy'],
+              [Shield,    'Secure Pay',    '100% protected'],
+            ].map(([Icon, label, sub]) => (
+              <div key={label} className="flex flex-col items-center text-center gap-1 p-2">
                 <Icon className="w-5 h-5 text-primary-500" />
                 <p className="text-xs font-semibold text-gray-700">{label}</p>
                 <p className="text-xs text-gray-400">{sub}</p>
@@ -326,16 +330,13 @@ export default function ProductDetail() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — description / details / reviews only (attributes shown in buy box) */}
       <div className="mb-16">
         <div className="flex gap-1 bg-gray-100 rounded-2xl p-1.5 w-fit mb-6">
-          {['description','details','attributes','reviews'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+          {['description', 'details', 'reviews'].map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-6 py-2.5 rounded-xl text-sm font-semibold capitalize transition-all duration-200
-                ${activeTab === tab ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-            >
+                ${activeTab === tab ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
               {tab}
             </button>
           ))}
@@ -367,38 +368,6 @@ export default function ProductDetail() {
           <div className="text-center py-10 text-gray-400">
             <Star className="w-10 h-10 mx-auto mb-3 text-gray-200" />
             <p className="font-semibold">Reviews coming soon</p>
-          </div>
-        )}
-        {activeTab === 'attributes' && (
-          <div className="space-y-4 max-w-2xl">
-            {!product.attributes?.length ? (
-              <p className="text-gray-400 text-sm py-4">No attributes specified for this product.</p>
-            ) : product.attributes.map((attr, i) => (
-              <div key={i} className="border border-gray-100 rounded-xl p-4">
-                <p className="font-semibold text-gray-800 text-sm mb-3">{attr.name}</p>
-                {attr.type === 'color' ? (
-                  <div className="flex flex-wrap gap-2">
-                    {attr.selected_values?.map(v => {
-                      const valObj = typeof v === 'string' ? { value: v } : v
-                      return (
-                        <span key={valObj.value} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-xl text-sm">
-                          {valObj.color_hex && <span className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" style={{ backgroundColor: valObj.color_hex }} />}
-                          {valObj.value}
-                        </span>
-                      )
-                    })}
-                  </div>
-                ) : attr.type === 'size_chart' ? (
-                  <p className="text-sm text-gray-500">See size chart above</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {attr.selected_values?.map(v => (
-                      <span key={v} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium">{v}</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
           </div>
         )}
       </div>

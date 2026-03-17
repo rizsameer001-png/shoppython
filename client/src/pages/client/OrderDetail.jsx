@@ -111,7 +111,18 @@ export default function OrderDetail() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm text-gray-800 line-clamp-1">{item.name}</p>
-                {item.variant && <p className="text-xs text-gray-400">{item.variant}</p>}
+                {/* attribute chips */}
+                {item.selected_attributes?.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {item.selected_attributes.map((a, ai) => (
+                      <span key={ai} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                        {a.name}: {a.value}
+                      </span>
+                    ))}
+                  </div>
+                ) : item.variant ? (
+                  <p className="text-xs text-gray-400">{item.variant}</p>
+                ) : null}
                 <p className="text-xs text-gray-400 mt-0.5">Qty: {item.quantity} × ₹{item.price?.toLocaleString()}</p>
               </div>
               <span className="font-bold text-primary-600 text-sm">₹{(item.price * item.quantity).toLocaleString()}</span>
