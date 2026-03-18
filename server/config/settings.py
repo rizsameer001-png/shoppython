@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: str = ""
     CLOUDINARY_UPLOAD_PRESET: str = "marketpro_unsigned"
 
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+    ALLOWED_ORIGINS: List[str] = ["https://shoppy-jhpy.onrender.com","http://localhost:5173", "http://localhost:3000"]
     ADMIN_EMAIL: str = "admin@marketpro.com"
     ADMIN_PASSWORD: str = "Admin@123456"
     APP_ENV: str = "development"

@@ -104,3 +104,7 @@ If category_id was stored as an empty string "" or a malformed value, ObjectId("
 Bug 9 — update_product filter strips boolean False fields (data integrity)
 Already covered in Bug 4 above — this was also silently corrupting data on every edit where any boolean field was set to False.
 
+https://shoppython.onrender.com/ -admin
+https://shoppy-jhpy.onrender.com/ -client
+
+
