@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = [
         "https://shoppy-jhpy.onrender.com",
         "http://localhost:5173",
-        "http://localhost:3000",
+        "http://localhost:3000"
     ]
 
     ADMIN_EMAIL: str = "admin@marketpro.com"

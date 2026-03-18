@@ -178,6 +178,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def force_cors(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
+    
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
@@ -200,19 +206,35 @@ async def val_exc(request: Request, exc: RequestValidationError):
         content={"success": False, "message": "Validation error", "errors": errors},
     )
 
+# @app.exception_handler(Exception)
+# async def global_exc(request: Request, exc: Exception):
+#     logger.error(
+#         f"Unhandled {type(exc).__name__} on {request.method} {request.url}\n"
+#         f"{traceback.format_exc()}"
+#     )
+#     detail = (
+#         f"{type(exc).__name__}: {exc}"
+#         if settings.APP_ENV == "development"
+#         else "Internal server error"
+#     )
+#     return JSONResponse(status_code=500, content={"success": False, "message": detail})
+
 @app.exception_handler(Exception)
 async def global_exc(request: Request, exc: Exception):
-    logger.error(
-        f"Unhandled {type(exc).__name__} on {request.method} {request.url}\n"
-        f"{traceback.format_exc()}"
+    response = JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "message": str(exc),  # show real error
+        },
     )
-    detail = (
-        f"{type(exc).__name__}: {exc}"
-        if settings.APP_ENV == "development"
-        else "Internal server error"
-    )
-    return JSONResponse(status_code=500, content={"success": False, "message": detail})
 
+    # 🔥 ADD THESE (IMPORTANT)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+
+    return response
 
 # ── Health ────────────────────────────────────────────────────────────────────
 @app.get("/", tags=["Health"])
