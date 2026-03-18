@@ -87,12 +87,21 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
 
+    # def __init__(self, **values):
+    #     super().__init__(**values)
+    #     # If ALLOWED_ORIGINS is set as a comma-separated env var, use that instead
+    #     raw = os.getenv("ALLOWED_ORIGINS", "")
+    #     if raw:
+    #         self.ALLOWED_ORIGINS = [o.strip() for o in raw.split(",") if o.strip()]
+
     def __init__(self, **values):
         super().__init__(**values)
-        # If ALLOWED_ORIGINS is set as a comma-separated env var, use that instead
-        raw = os.getenv("ALLOWED_ORIGINS", "")
+        raw = os.getenv("ALLOWED_ORIGINS")
         if raw:
-            self.ALLOWED_ORIGINS = [o.strip() for o in raw.split(",") if o.strip()]
-
+            self.ALLOWED_ORIGINS = [
+                o.strip().replace('"', '').replace("'", "")
+                for o in raw.split(",")
+                if o.strip()
+            ]
 
 settings = Settings()
