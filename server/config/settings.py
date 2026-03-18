@@ -45,6 +45,7 @@
 
 from pydantic_settings import BaseSettings
 from typing import List
+from pydantic import field_validator
 
 
 class Settings(BaseSettings):
@@ -59,8 +60,10 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: str = ""
     CLOUDINARY_UPLOAD_PRESET: str = "marketpro_unsigned"
 
-    # 👇 CHANGE HERE
-    ALLOWED_ORIGINS: str = ""
+    # ✅ CORS origins
+    ALLOWED_ORIGINS: List[str] = [
+        "https://shoppy-jhpy.onrender.com"
+    ]
 
     ADMIN_EMAIL: str = "admin@marketpro.com"
     ADMIN_PASSWORD: str = "Admin@123456"
@@ -75,16 +78,17 @@ class Settings(BaseSettings):
     UPI_ID: str = ""
     UPI_NAME: str = "MarketPro Store"
 
+    # Proper parsing for Render env (comma-separated string)
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_origins(cls, v):
+        if isinstance(v, str):
+            return [i.strip() for i in v.split(",") if i.strip()]
+        return v
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
-
-    #  Convert to list manually
-    @property
-    def allowed_origins_list(self) -> List[str]:
-        if not self.ALLOWED_ORIGINS:
-            return []
-        return [i.strip() for i in self.ALLOWED_ORIGINS.split(",") if i.strip()]
 
 
 settings = Settings()
