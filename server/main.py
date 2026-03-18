@@ -6,8 +6,8 @@ import asyncio
 # Python 3.12 on Windows changed the default asyncio event loop policy.
 # WindowsSelectorEventLoopPolicy is required for uvicorn + Motor (MongoDB async driver)
 # to work correctly on Windows. On Linux/Mac this is a no-op.
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+# if sys.platform == "win32":
+#     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -50,8 +50,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(CORSMiddleware, allow_origins=settings.ALLOWED_ORIGINS,
-                   allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+# app.add_middleware(CORSMiddleware, allow_origins=settings.ALLOWED_ORIGINS,
+#                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://shoppy-jhpy.onrender.com"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
