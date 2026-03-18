@@ -1,0 +1,53 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Development overrides — fast iteration with hot reload
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  api:
+    # Override: run directly from source with --reload
+    build:
+      context: .
+      dockerfile: deploy/server.Dockerfile
+      target: runtime          # skip nothing, but mount source over it
+    command:
+      - uvicorn
+      - main:app
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --reload
+      - --reload-dir
+      - /app
+    volumes:
+      # Mount live source — changes restart the server immediately
+      - ./server:/app:cached
+    environment:
+      APP_ENV: development
+    # Expose API port directly for Postman / curl during dev
+    ports:
+      - "8000:8000"
+
+  # In dev, run the React dev server (Vite) instead of the built Nginx image
+  client:
+    build:
+      context: .
+      dockerfile: deploy/client.dev.Dockerfile
+    container_name: marketpro_client_dev
+    volumes:
+      - ./client:/app:cached
+      - /app/node_modules          # don't mount over node_modules
+    environment:
+      VITE_API_URL: http://localhost:8000/api
+    ports:
+      - "5173:5173"
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+    networks:
+      - frontend
+
+  # Skip the proxy in dev — access services directly
+  proxy:
+    profiles:
+      - proxy-only  # won't start unless explicitly requested

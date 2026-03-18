@@ -1,0 +1,125 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# MarketPro — render.yaml
+# Deploys both services to Render.com with one file
+#
+# Setup steps:
+#   1. Push your code to GitHub
+#   2. Go to render.com → New → Blueprint
+#   3. Connect your repo — Render reads this file automatically
+#   4. Fill in the secret env vars marked sync: false in the Render dashboard
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── FastAPI Server ──────────────────────────────────────────────────────────
+  - type: web
+    name: marketpro-api
+    runtime: python
+    # Render builds from the server/ subdirectory
+    rootDir: server
+    plan: starter             # upgrade to standard for production traffic
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1 --loop uvloop
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+    envVars:
+      # ── Database (MongoDB Atlas recommended) ──────────────────────────────
+      - key: MONGODB_URL
+        sync: false           # fill in Render dashboard — never commit this
+
+      # ── Auth ──────────────────────────────────────────────────────────────
+      - key: JWT_SECRET
+        generateValue: true   # Render generates a secure random value
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: "30"
+
+      # ── Cloudinary ────────────────────────────────────────────────────────
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+      # ── CORS — set to your Render static site URL ─────────────────────────
+      # Format: https://marketpro.onrender.com,https://yourdomain.com
+      - key: ALLOWED_ORIGINS
+        sync: false
+
+      # ── Admin credentials ─────────────────────────────────────────────────
+      - key: ADMIN_EMAIL
+        value: admin@marketpro.com
+      - key: ADMIN_PASSWORD
+        sync: false           # set a strong password in dashboard
+
+      # ── App ───────────────────────────────────────────────────────────────
+      - key: APP_ENV
+        value: production
+
+      # ── Razorpay ──────────────────────────────────────────────────────────
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+
+      # ── Stripe ────────────────────────────────────────────────────────────
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+      # ── UPI ───────────────────────────────────────────────────────────────
+      - key: UPI_ID
+        sync: false
+      - key: UPI_NAME
+        value: MarketPro Store
+
+
+  # ── React Frontend (Static Site) ───────────────────────────────────────────
+  - type: web
+    name: marketpro-client
+    runtime: static
+    rootDir: client
+    plan: starter
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+
+    # SPA routing: all paths serve index.html
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+    headers:
+      # Cache JS/CSS forever (Vite content-hashes filenames)
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      # Never cache index.html
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+
+    envVars:
+      # Points to the API service above
+      # Replace with your actual API URL after first deploy
+      - key: VITE_API_URL
+        value: https://marketpro-api.onrender.com/api
+
+      # Frontend-safe public keys only
+      - key: VITE_RAZORPAY_KEY_ID
+        sync: false
+      - key: VITE_STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_UPI_ID
+        sync: false
+      - key: VITE_UPI_NAME
+        value: MarketPro Store

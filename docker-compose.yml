@@ -1,0 +1,163 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# MarketPro — docker-compose.yml
+#
+# Services:
+#   mongo    → MongoDB 7 (data persisted in named volume)
+#   api      → FastAPI server (port 8000, internal only)
+#   client   → React/Nginx (port 3000, internal only)
+#   proxy    → Nginx reverse proxy (public port 80/443)
+#
+# Usage:
+#   Development:   docker compose up
+#   Production:    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   With SSL:      copy .env.example → .env, fill values, then:
+#                  docker compose up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── MongoDB ─────────────────────────────────────────────────────────────────
+  mongo:
+    image: mongo:7.0
+    container_name: marketpro_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
+      MONGO_INITDB_DATABASE: marketpro
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    ports:
+      # Only expose locally for dev tools (Compass etc.)
+      # Remove this in production
+      - "127.0.0.1:27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - backend
+
+  # ── FastAPI server ───────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: deploy/server.Dockerfile
+    container_name: marketpro_api
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      # MongoDB — uses the internal Docker network hostname
+      MONGODB_URL: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongo:27017/marketpro?authSource=admin
+
+      # Auth
+      JWT_SECRET: ${JWT_SECRET:-change_this_in_production_min_32_chars}
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-30}
+
+      # Cloudinary
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+
+      # CORS — must include the public domain when behind proxy
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://client}
+
+      # Admin seed
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@marketpro.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@123456}
+      APP_ENV: ${APP_ENV:-production}
+
+      # Payments
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      UPI_ID: ${UPI_ID:-}
+      UPI_NAME: ${UPI_NAME:-MarketPro}
+    volumes:
+      # Mount .env file if present (dev convenience)
+      - ./server/.env:/app/.env:ro
+    # Port only exposed internally; proxy routes /api → api:8000
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - backend
+      - frontend
+
+  # ── React client (Nginx static serve) ───────────────────────────────────────
+  client:
+    build:
+      context: .
+      dockerfile: deploy/client.Dockerfile
+      args:
+        # /api is a relative path — the browser will call same-origin /api/*
+        # which the reverse proxy routes to the api container
+        VITE_API_URL: /api
+        VITE_RAZORPAY_KEY_ID: ${VITE_RAZORPAY_KEY_ID:-}
+        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
+        VITE_UPI_ID: ${UPI_ID:-}
+        VITE_UPI_NAME: ${UPI_NAME:-MarketPro}
+    container_name: marketpro_client
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - frontend
+    depends_on:
+      - api
+
+  # ── Nginx reverse proxy ──────────────────────────────────────────────────────
+  proxy:
+    image: nginx:1.25-alpine
+    container_name: marketpro_proxy
+    restart: unless-stopped
+    depends_on:
+      - api
+      - client
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/proxy.conf:/etc/nginx/conf.d/default.conf:ro
+      # SSL certs mount point (used in production)
+      - ./deploy/nginx/ssl:/etc/nginx/ssl:ro
+      # Let's Encrypt / Certbot webroot
+      - certbot_webroot:/var/www/certbot:ro
+    networks:
+      - frontend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+
+volumes:
+  mongo_data:
+    driver: local
+  mongo_config:
+    driver: local
+  certbot_webroot:
+    driver: local
+
+
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge

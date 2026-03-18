@@ -1,0 +1,55 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Production overrides — used alongside docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  api:
+    # More workers in production (use 2× CPU cores)
+    command:
+      - uvicorn
+      - main:app
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --workers
+      - "4"
+      - --loop
+      - uvloop
+      - --access-log
+    # Remove dev env file mount in production — use real env vars
+    volumes: []
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  mongo:
+    # Remove local port exposure in production
+    ports: []
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  client:
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  proxy:
+    deploy:
+      resources:
+        limits:
+          memory: 64M
