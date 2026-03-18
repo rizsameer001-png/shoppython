@@ -1,4 +1,7 @@
 
+Perfect — now we’re very close 🔥
+Since products work but login fails, this is a preflight (OPTIONS) issue, not normal CORS.
+
 cd D:\0python\3\server
 venv\Scripts\activate
 uvicorn main:app --reload --host 0.0.0.0 --port 8000

@@ -117,7 +117,7 @@
 #                 reload=settings.APP_ENV == "development", workers=1)
 
 """MarketPro — FastAPI Backend"""
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
@@ -129,7 +129,11 @@ import uvicorn, logging, traceback
 from config.database import connect_db, disconnect_db
 from config.settings import settings
 
-print("CORS ORIGINS:", settings.ALLOWED_ORIGINS)  # 👈 ADD HERE
+# 🔥 IMPORTANT: Use exact origin (NO *)
+ORIGIN = "https://shoppy-jhpy.onrender.com"
+
+print("CORS ORIGINS:", settings.ALLOWED_ORIGINS)
+
 from routes import (
     auth_router, product_router, category_router, brand_router,
     cart_router, wishlist_router, order_router, upload_router,
@@ -143,8 +147,6 @@ logging.basicConfig(
     format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-# Log CORS origins at startup so you can verify in Render logs
 logger.info(f"CORS allowed origins: {settings.ALLOWED_ORIGINS}")
 
 
@@ -166,34 +168,46 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ── CORS ─────────────────────────────────────────────────────────────────────
-# Origins come from settings.ALLOWED_ORIGINS (set in config/settings.py or
-# overridden by the ALLOWED_ORIGINS env var on Render).
-# Current default includes: https://shoppy-jhpy.onrender.com + localhost variants
+# ✅ CORS (STRICT + CORRECT)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=[ORIGIN],  # 🔥 MUST be exact (no *)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ✅ HANDLE PREFLIGHT (FIX LOGIN ISSUE)
+@app.options("/{full_path:path}")
+async def preflight_handler(full_path: str):
+    response = Response()
+    response.headers["Access-Control-Allow-Origin"] = ORIGIN
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
+# ✅ FORCE CORS (BACKUP)
 @app.middleware("http")
 async def force_cors(request: Request, call_next):
     response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Origin"] = ORIGIN
+    response.headers["Access-Control-Allow-Credentials"] = "true"
     return response
-    
+
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 # ── Exception handlers ────────────────────────────────────────────────────────
 @app.exception_handler(StarletteHTTPException)
 async def http_exc(request: Request, exc: StarletteHTTPException):
-    return JSONResponse(
+    response = JSONResponse(
         status_code=exc.status_code,
         content={"success": False, "message": str(exc.detail)},
     )
+    response.headers["Access-Control-Allow-Origin"] = ORIGIN
+    return response
+
 
 @app.exception_handler(RequestValidationError)
 async def val_exc(request: Request, exc: RequestValidationError):
@@ -201,26 +215,21 @@ async def val_exc(request: Request, exc: RequestValidationError):
         f"{'->'.join(str(x) for x in e['loc'])}: {e['msg']}"
         for e in exc.errors()
     ]
-    return JSONResponse(
+    response = JSONResponse(
         status_code=422,
         content={"success": False, "message": "Validation error", "errors": errors},
     )
+    response.headers["Access-Control-Allow-Origin"] = ORIGIN
+    return response
 
-# @app.exception_handler(Exception)
-# async def global_exc(request: Request, exc: Exception):
-#     logger.error(
-#         f"Unhandled {type(exc).__name__} on {request.method} {request.url}\n"
-#         f"{traceback.format_exc()}"
-#     )
-#     detail = (
-#         f"{type(exc).__name__}: {exc}"
-#         if settings.APP_ENV == "development"
-#         else "Internal server error"
-#     )
-#     return JSONResponse(status_code=500, content={"success": False, "message": detail})
 
 @app.exception_handler(Exception)
 async def global_exc(request: Request, exc: Exception):
+    logger.error(
+        f"Unhandled {type(exc).__name__} on {request.method} {request.url}\n"
+        f"{traceback.format_exc()}"
+    )
+
     response = JSONResponse(
         status_code=500,
         content={
@@ -228,13 +237,9 @@ async def global_exc(request: Request, exc: Exception):
             "message": str(exc),  # show real error
         },
     )
-
-    # 🔥 ADD THESE (IMPORTANT)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-
+    response.headers["Access-Control-Allow-Origin"] = ORIGIN
     return response
+
 
 # ── Health ────────────────────────────────────────────────────────────────────
 @app.get("/", tags=["Health"])
