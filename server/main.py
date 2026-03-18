@@ -50,17 +50,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# app.add_middleware(CORSMiddleware, allow_origins=settings.ALLOWED_ORIGINS,
-#                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://shoppy-jhpy.onrender.com"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(CORSMiddleware, allow_origins=settings.ALLOWED_ORIGINS,
+                   allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+print("CORS ORIGINS:", settings.ALLOWED_ORIGINS)
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=[
+#         "https://shoppy-jhpy.onrender.com"
+#     ],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
