@@ -128,6 +128,8 @@ import uvicorn, logging, traceback
 
 from config.database import connect_db, disconnect_db
 from config.settings import settings
+
+print("CORS ORIGINS:", settings.ALLOWED_ORIGINS)  # 👈 ADD HERE
 from routes import (
     auth_router, product_router, category_router, brand_router,
     cart_router, wishlist_router, order_router, upload_router,
