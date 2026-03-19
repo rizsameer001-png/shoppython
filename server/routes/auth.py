@@ -8,6 +8,10 @@ from config.database import get_db
 from bson import ObjectId
 import logging
 
+from fastapi import APIRouter
+
+router = APIRouter()
+
 logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
