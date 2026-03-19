@@ -64,11 +64,20 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 # ── Exception handlers ────────────────────────────────────────────────────────
+# CORS headers added to ALL error responses so Flutter web / browsers
+# never see a CORS error when the server returns 4xx/5xx.
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "*",
+    "Access-Control-Allow-Headers": "*",
+}
+
 @app.exception_handler(StarletteHTTPException)
 async def http_exc(request: Request, exc: StarletteHTTPException):
     return JSONResponse(
         status_code=exc.status_code,
         content={"success": False, "message": str(exc.detail)},
+        headers=CORS_HEADERS,
     )
 
 @app.exception_handler(RequestValidationError)
@@ -80,6 +89,7 @@ async def val_exc(request: Request, exc: RequestValidationError):
     return JSONResponse(
         status_code=422,
         content={"success": False, "message": "Validation error", "errors": errors},
+        headers=CORS_HEADERS,
     )
 
 @app.exception_handler(Exception)
@@ -93,7 +103,7 @@ async def global_exc(request: Request, exc: Exception):
         if settings.APP_ENV == "development"
         else "Internal server error"
     )
-    return JSONResponse(status_code=500, content={"success": False, "message": detail})
+    return JSONResponse(status_code=500, content={"success": False, "message": detail}, headers=CORS_HEADERS)
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
