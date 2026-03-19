@@ -50,17 +50,19 @@
 #     lifespan=lifespan,
 # )
 
-# # app.add_middleware(CORSMiddleware, allow_origins=settings.ALLOWED_ORIGINS,
-# #                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=[
-#         "https://shoppy-jhpy.onrender.com"
-#     ],
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+# app.add_middleware(CORSMiddleware, allow_origins=settings.ALLOWED_ORIGINS,
+#                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+# print("CORS ORIGINS:", settings.ALLOWED_ORIGINS)
+
+# # app.add_middleware(
+# #     CORSMiddleware,
+# #     allow_origins=[
+# #         "https://shoppy-jhpy.onrender.com"
+# #     ],
+# #     allow_credentials=True,
+# #     allow_methods=["*"],
+# #     allow_headers=["*"],
+# # )
 
 # app.add_middleware(GZipMiddleware, minimum_size=1000)
 
@@ -115,14 +117,7 @@
 #                 reload=settings.APP_ENV == "development", workers=1)
 
 """MarketPro — FastAPI Backend"""
-import sys
-import asyncio
-
-# Windows fix (optional)
-# if sys.platform == "win32":
-#     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
@@ -133,6 +128,12 @@ import uvicorn, logging, traceback
 
 from config.database import connect_db, disconnect_db
 from config.settings import settings
+
+# 🔥 IMPORTANT: Use exact origin (NO *)
+ORIGIN = "https://shoppy-jhpy.onrender.com"
+
+print("CORS ORIGINS:", settings.ALLOWED_ORIGINS)
+
 from routes import (
     auth_router, product_router, category_router, brand_router,
     cart_router, wishlist_router, order_router, upload_router,
@@ -146,6 +147,7 @@ logging.basicConfig(
     format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
 )
 logger = logging.getLogger(__name__)
+logger.info(f"CORS allowed origins: {settings.ALLOWED_ORIGINS}")
 
 
 @asynccontextmanager
@@ -166,26 +168,45 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ✅ Dynamic CORS (FIXED)
+# ✅ CORS (STRICT + CORRECT)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins_list,  # 👈 IMPORTANT
+    allow_origins=[ORIGIN],  # 🔥 MUST be exact (no *)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ✅ Compression
+# ✅ HANDLE PREFLIGHT (FIX LOGIN ISSUE)
+@app.options("/{full_path:path}")
+async def preflight_handler(full_path: str):
+    response = Response()
+    response.headers["Access-Control-Allow-Origin"] = ORIGIN
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
+# ✅ FORCE CORS (BACKUP)
+@app.middleware("http")
+async def force_cors(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = ORIGIN
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
-# ✅ Exception handlers
+# ── Exception handlers ────────────────────────────────────────────────────────
 @app.exception_handler(StarletteHTTPException)
 async def http_exc(request: Request, exc: StarletteHTTPException):
-    return JSONResponse(
+    response = JSONResponse(
         status_code=exc.status_code,
         content={"success": False, "message": str(exc.detail)},
     )
+    response.headers["Access-Control-Allow-Origin"] = ORIGIN
+    return response
 
 
 @app.exception_handler(RequestValidationError)
@@ -194,42 +215,41 @@ async def val_exc(request: Request, exc: RequestValidationError):
         f"{'->'.join(str(x) for x in e['loc'])}: {e['msg']}"
         for e in exc.errors()
     ]
-    return JSONResponse(
+    response = JSONResponse(
         status_code=422,
         content={"success": False, "message": "Validation error", "errors": errors},
     )
+    response.headers["Access-Control-Allow-Origin"] = ORIGIN
+    return response
 
 
 @app.exception_handler(Exception)
 async def global_exc(request: Request, exc: Exception):
     logger.error(
-        f"Unhandled {type(exc).__name__} on {request.method} {request.url}\n{traceback.format_exc()}"
+        f"Unhandled {type(exc).__name__} on {request.method} {request.url}\n"
+        f"{traceback.format_exc()}"
     )
-    detail = (
-        f"{type(exc).__name__}: {exc}"
-        if settings.APP_ENV == "development"
-        else "Internal server error"
-    )
-    return JSONResponse(
+
+    response = JSONResponse(
         status_code=500,
-        content={"success": False, "message": detail},
+        content={
+            "success": False,
+            "message": str(exc),  # show real error
+        },
     )
+    response.headers["Access-Control-Allow-Origin"] = ORIGIN
+    return response
 
 
-# ✅ Health check
+# ── Health ────────────────────────────────────────────────────────────────────
 @app.get("/", tags=["Health"])
 @app.get("/api/health", tags=["Health"])
 async def health():
-    return {
-        "success": True,
-        "message": "MarketPro API 🛒",
-        "version": "1.0.0",
-    }
+    return {"success": True, "message": "MarketPro API 🛒", "version": "1.0.0"}
 
 
-# ✅ Routes
+# ── Routers ───────────────────────────────────────────────────────────────────
 PREFIX = "/api"
-
 app.include_router(auth_router,      prefix=f"{PREFIX}/auth",        tags=["Auth"])
 app.include_router(user_router,      prefix=f"{PREFIX}/users",       tags=["Users"])
 app.include_router(product_router,   prefix=f"{PREFIX}/products",    tags=["Products"])
@@ -240,8 +260,6 @@ app.include_router(wishlist_router,  prefix=f"{PREFIX}/wishlist",    tags=["Wish
 app.include_router(order_router,     prefix=f"{PREFIX}/orders",      tags=["Orders"])
 app.include_router(upload_router,    prefix=f"{PREFIX}/upload",      tags=["Upload"])
 app.include_router(admin_router,     prefix=f"{PREFIX}/admin",       tags=["Admin"])
-
-# New features
 app.include_router(attribute_router, prefix=f"{PREFIX}/attributes",  tags=["Attributes"])
 app.include_router(blog_router,      prefix=f"{PREFIX}/blogs",       tags=["Blog"])
 app.include_router(banner_router,    prefix=f"{PREFIX}/banners",     tags=["Banners"])
