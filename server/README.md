@@ -59,8 +59,15 @@ uvicorn main:app --reload --port 8000
 netstat -ano | findstr :8000
 netstat -ano | findstr :5173
 taskkill /F /PID 12680
+aman@demo.com
+123456
 
 ```
+422
+Unprocessable Entity (WebDAV) (RFC 4918)
+
+
+ClientException:Failed to fetch,uri=https://shoppython.onrender.com/api/auth/login
 ----------------------------------------------------------------------------
 The ImportError: cannot import name 'PYDANTIC_V2' occurs because you have a mismatch between your FastAPI version and your Pydantic version. Specifically, FastAPI 0.111.0 expects Pydantic to be structured a certain way, but since the previous installation failed/partially updated, the "glue" code (_compat) is broken
 pip install --upgrade fastapi pydantic pydantic-settings uvicorn
