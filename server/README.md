@@ -63,6 +63,17 @@ aman@demo.com
 123456
 
 ```
+
+-----------------------------------------------------
+1. {name: "ajju", email: "ajju@demo.com", password: "12345678", phone: ""}
+   1. email: "ajju@demo.com"
+   2. name: "ajju"
+   3. password: "12345678"
+   4. phone: ""   {
+    "success": false,
+    "message": "ValueError: password cannot be longer than 72 bytes, truncate manually if necessary (e.g. my_password[:72])"
+}
+---------------------------------------------------
 422
 Unprocessable Entity (WebDAV) (RFC 4918)
 
