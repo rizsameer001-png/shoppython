@@ -290,3 +290,43 @@ async def login(data: LoginRequest):
             "role": user.get("role", "user"),
         },
     }
+
+    # ── Register Route ──────────────────────────────────────────────
+@router.post("/register")
+async def register(data: LoginRequest):
+    db = get_db()
+
+    # 🔍 Check if user already exists
+    existing_user = await db.users.find_one({"email": data.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    # 🔐 Hash password
+    hashed_password = hash_password(data.password)
+
+    # 👤 Create user
+    user_data = {
+        "name": data.email.split("@")[0],
+        "email": data.email,
+        "password": hashed_password,
+        "role": "user",
+        "is_active": True,
+    }
+
+    result = await db.users.insert_one(user_data)
+
+    # 🎟 Auto login after register
+    access_token = create_access_token({"sub": str(result.inserted_id)})
+    refresh_token = create_refresh_token({"sub": str(result.inserted_id)})
+
+    return {
+        "success": True,
+        "message": "User registered successfully",
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "user": {
+            "id": str(result.inserted_id),
+            "email": user_data["email"],
+            "role": user_data["role"],
+        },
+    }

@@ -11,7 +11,7 @@ db = None
 async def connect_db():
     global client, db
     client = AsyncIOMotorClient(settings.MONGODB_URL)
-    db = client.get_default_database() if "?" in settings.MONGODB_URL else client["marketpro"]
+    db = client.get_default_database() if "?" in settings.MONGODB_URL else client["ecompython"]
     # Create indexes
     await create_indexes()
     logger.info("MongoDB connected")
