@@ -361,9 +361,9 @@ export default function BlogPostPage() {
         {/* ── Main content column ── */}
         <article className="flex-1 min-w-0">
 
-          {/* Hero media — cover image OR youtube OR video */}
-          {post.cover_image && (
-            <div className="rounded-2xl overflow-hidden mb-8 shadow-lg">
+          {/* Hero media — cover image OR youtube OR video  */}
+{/*          {post.cover_image && (
+            <div className="rounded-2xl overflow-hidden mb-8 shadow-lg ">
               <img
                 src={post.cover_image}
                 alt={post.title}
@@ -381,7 +381,41 @@ export default function BlogPostPage() {
           )}
           {post.video_url && !post.youtube_url && (
             <video src={post.video_url} controls className="w-full rounded-2xl mb-8 shadow-lg max-h-96" />
-          )}
+          )}*/}
+
+          {/* Hero media — cover image OR youtube OR video */}
+{post.cover_image && (
+  <div className="rounded-2xl overflow-hidden mb-8 shadow-lg aspect-[3/4]">
+    <img
+      src={post.cover_image}
+      alt={post.title}
+      className="w-full h-full object-cover"
+    />
+  </div>
+)}
+
+{post.youtube_url && (
+  <div className="rounded-2xl overflow-hidden mb-8 shadow-lg aspect-[4/2.3] bg-black">
+    <iframe
+      src={post.youtube_url
+        .replace('watch?v=', 'embed/')
+        .replace('youtu.be/', 'www.youtube.com/embed/')}
+      allow="autoplay; fullscreen"
+      allowFullScreen
+      className="w-full h-full"
+    />
+  </div>
+)}
+
+{post.video_url && !post.youtube_url && (
+  <div className="rounded-2xl overflow-hidden mb-8 shadow-lg aspect-[4/2.3] bg-black">
+    <video
+      src={post.video_url}
+      controls
+      className="w-full h-full object-cover"
+    />
+  </div>
+)}
 
           {/* Category pill */}
           {post.category && (

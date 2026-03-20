@@ -74,7 +74,8 @@ export default function BlogPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {blogs.map(b => (
             <Link key={b.id} to={`/blog/${b.slug || b.id}`} className="card overflow-hidden group hover:shadow-card-hover transition-shadow">
-              <div className="aspect-video bg-gray-100 overflow-hidden">
+              {/*<div className="aspect-video bg-gray-100 overflow-hidden">*/}
+            <div className="aspect-[3/4] bg-gray-100 overflow-hidden">
                 {b.cover_image
                   ? <img src={b.cover_image} alt={b.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   : <div className="w-full h-full flex items-center justify-center text-gray-200 text-5xl">📝</div>}
